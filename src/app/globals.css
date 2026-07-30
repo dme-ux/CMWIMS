@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 248 250 253;      /* app background (light) */
+  --surface: 255 255 255;
+}
+.dark {
+  --bg: 9 14 28;
+  --surface: 17 24 42;
+}
+
+html, body { height: 100%; }
+body {
+  background: rgb(var(--bg));
+  color: theme("colors.ink.DEFAULT");
+  -webkit-font-smoothing: antialiased;
+}
+.dark body { color: #e6ecf7; }
+
+/* Reusable glass surface */
+.glass {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+.dark .glass {
+  background: rgba(23, 33, 60, 0.55);
+  border: 1px solid rgba(120, 150, 220, 0.14);
+}
+
+/* Subtle scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: rgba(37, 99, 235, 0.25);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(37, 99, 235, 0.45); }
+
+/* Accessibility: honor reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

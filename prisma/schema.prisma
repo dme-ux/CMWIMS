@@ -1,0 +1,582 @@
+// ============================================================================
+//  CMW ERP — Prisma Schema
+//  Capital Motor Works · Smart Inventory & Workshop Management System
+//  Backend: PostgreSQL. Scalable, normalised, audit-friendly.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Pooled connection (Supavisor / pgBouncer, port 6543) — used at runtime.
+  url       = env("DATABASE_URL")
+  // Direct connection (port 5432) — used by Prisma CLI for migrations / db push.
+  // On non-Supabase hosts (Neon/Railway/local) set DIRECT_URL = DATABASE_URL.
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+//  ENUMS
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  MANAGER
+  STORE_MANAGER
+  ACCOUNTS
+  PURCHASE
+  WORKSHOP
+  SERVICE_ADVISOR
+  TECHNICIAN
+  VIEWER
+}
+
+enum MovementType {
+  INWARD_GRN
+  OUTWARD_ISSUE
+  WORKSHOP_CONSUMPTION
+  CUSTOMER_SALE
+  INTERNAL_TRANSFER
+  DAMAGE
+  RETURN_IN
+  VENDOR_RETURN
+  ADJUSTMENT
+  OPENING
+}
+
+enum POStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENT
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+}
+
+enum RequisitionStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  CONVERTED
+  REJECTED
+}
+
+enum WorkshopStatus {
+  RECEIVED
+  IN_PROGRESS
+  WAITING_PARTS
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+enum NotificationType {
+  LOW_STOCK
+  PENDING_PAYMENT
+  PURCHASE_APPROVAL
+  MATERIAL_RECEIVED
+  ORDER_COMPLETED
+  SYSTEM
+}
+
+// ---------------------------------------------------------------------------
+//  AUTH & USERS
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  username     String    @unique
+  email        String    @unique
+  passwordHash String
+  role         Role      @default(VIEWER)
+  isActive     Boolean   @default(true)
+  avatarUrl    String?
+  phone        String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // relations (created-by trails)
+  stockMovements     StockMovement[]    @relation("MovementUser")
+  purchaseOrders     PurchaseOrder[]    @relation("POCreatedBy")
+  approvedOrders     PurchaseOrder[]    @relation("POApprovedBy")
+  auditLogs          AuditLog[]
+  notifications      Notification[]
+  employee           Employee?
+
+  @@index([role])
+}
+
+// ---------------------------------------------------------------------------
+//  MASTERS
+// ---------------------------------------------------------------------------
+
+model Vendor {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  contactPerson String?
+  phone         String?
+  email         String?
+  gstin         String?
+  address       String?
+  city          String?
+  state         String?
+  pincode       String?
+  paymentTerms  String?  // e.g. "Net 30"
+  openingBalance Float   @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items            Item[]
+  purchaseOrders   PurchaseOrder[]
+  purchaseInvoices PurchaseInvoice[]
+  ledgerEntries    VendorLedger[]
+  payments         Payment[]
+
+  @@index([name])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  phone     String?
+  email     String?
+  gstin     String?
+  address   String?
+  city      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicles      Vehicle[]
+  workshopJobs  WorkshopJob[]
+
+  @@index([name])
+}
+
+model VehicleModel {
+  id        String   @id @default(cuid())
+  name      String   // e.g. "5 Series G30"
+  oemBrandId String?
+  oemBrand   OEMBrand? @relation(fields: [oemBrandId], references: [id])
+  createdAt DateTime @default(now())
+
+  vehicles Vehicle[]
+  items    Item[]
+
+  @@unique([name, oemBrandId])
+}
+
+model OEMBrand {
+  id        String   @id @default(cuid())
+  name      String   @unique // e.g. BMW, Mercedes-Benz, Audi
+  createdAt DateTime @default(now())
+
+  models VehicleModel[]
+}
+
+model Vehicle {
+  id            String   @id @default(cuid())
+  registration  String?  @unique
+  vin           String?
+  chassisNumber String?
+  engineNumber  String?
+  year          Int?
+  color         String?
+  customerId    String?
+  customer      Customer? @relation(fields: [customerId], references: [id])
+  modelId       String?
+  model         VehicleModel? @relation(fields: [modelId], references: [id])
+  createdAt     DateTime @default(now())
+
+  workshopJobs WorkshopJob[]
+
+  @@index([chassisNumber])
+}
+
+model Brand {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  items     Item[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  subCategories SubCategory[]
+  items         Item[]
+}
+
+model SubCategory {
+  id         String   @id @default(cuid())
+  name       String
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  createdAt  DateTime @default(now())
+  items      Item[]
+
+  @@unique([name, categoryId])
+}
+
+model Unit {
+  id        String   @id @default(cuid())
+  name      String   @unique // Nos, Set, Ltr, Kg
+  symbol    String?
+  createdAt DateTime @default(now())
+  items     Item[]
+}
+
+model HSNCode {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  gstRate   Float    @default(18)
+  createdAt DateTime @default(now())
+  items     Item[]
+}
+
+// Warehouse -> Rack -> Shelf -> Bin location hierarchy
+model Warehouse {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  address   String?
+  createdAt DateTime @default(now())
+  racks     Rack[]
+  items     Item[]
+}
+
+model Rack {
+  id          String   @id @default(cuid())
+  name        String
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  createdAt   DateTime @default(now())
+  shelves     Shelf[]
+  items       Item[]
+
+  @@unique([name, warehouseId])
+}
+
+model Shelf {
+  id        String   @id @default(cuid())
+  name      String
+  rackId    String
+  rack      Rack     @relation(fields: [rackId], references: [id])
+  createdAt DateTime @default(now())
+  bins      Bin[]
+  items     Item[]
+
+  @@unique([name, rackId])
+}
+
+model Bin {
+  id        String   @id @default(cuid())
+  name      String
+  shelfId   String
+  shelf     Shelf    @relation(fields: [shelfId], references: [id])
+  createdAt DateTime @default(now())
+  items     Item[]
+
+  @@unique([name, shelfId])
+}
+
+// ---------------------------------------------------------------------------
+//  INVENTORY
+// ---------------------------------------------------------------------------
+
+model Item {
+  id            String  @id @default(cuid())
+  sku           String  @unique // internal code
+  name          String
+  description   String?
+  partNumber    String?
+  oemNumber     String?
+  barcode       String? @unique
+  qrCode        String?
+  imageUrl      String?
+
+  // classification
+  brandId       String?
+  brand         Brand?       @relation(fields: [brandId], references: [id])
+  categoryId    String?
+  category      Category?    @relation(fields: [categoryId], references: [id])
+  subCategoryId String?
+  subCategory   SubCategory? @relation(fields: [subCategoryId], references: [id])
+  modelId       String?
+  vehicleModel  VehicleModel? @relation(fields: [modelId], references: [id])
+  unitId        String?
+  unit          Unit?        @relation(fields: [unitId], references: [id])
+  hsnId         String?
+  hsn           HSNCode?     @relation(fields: [hsnId], references: [id])
+  vendorId      String?
+  vendor        Vendor?      @relation(fields: [vendorId], references: [id])
+
+  // location
+  warehouseId String?
+  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
+  rackId      String?
+  rack        Rack?      @relation(fields: [rackId], references: [id])
+  shelfId     String?
+  shelf       Shelf?     @relation(fields: [shelfId], references: [id])
+  binId       String?
+  bin         Bin?       @relation(fields: [binId], references: [id])
+
+  // stock levels
+  openingStock  Float @default(0)
+  currentStock  Float @default(0)
+  reservedStock Float @default(0)
+  minStock      Float @default(0)
+  maxStock      Float @default(0)
+  reorderLevel  Float @default(0)
+
+  // pricing
+  purchaseRate Float @default(0)
+  sellingRate  Float @default(0)
+  mrp          Float @default(0)
+  gstRate      Float @default(18)
+  averageCost  Float @default(0)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stockMovements StockMovement[]
+  poItems        PurchaseOrderItem[]
+
+  @@index([name])
+  @@index([partNumber])
+  @@index([oemNumber])
+}
+
+// Complete audit trail of every stock change
+model StockMovement {
+  id           String       @id @default(cuid())
+  itemId       String
+  item         Item         @relation(fields: [itemId], references: [id])
+  type         MovementType
+  quantity     Float        // signed: +in / -out
+  oldStock     Float
+  newStock     Float
+  rate         Float        @default(0)
+  reference    String?      // PO no / job card / invoice
+  reason       String?
+  locationNote String?
+  userId       String?
+  user         User?        @relation("MovementUser", fields: [userId], references: [id])
+  createdAt    DateTime     @default(now())
+
+  @@index([itemId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+//  PURCHASE
+// ---------------------------------------------------------------------------
+
+model PurchaseRequisition {
+  id        String            @id @default(cuid())
+  number    String            @unique
+  status    RequisitionStatus @default(DRAFT)
+  notes     String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+model PurchaseOrder {
+  id            String   @id @default(cuid())
+  number        String   @unique
+  vendorId      String
+  vendor        Vendor   @relation(fields: [vendorId], references: [id])
+  status        POStatus @default(DRAFT)
+  orderDate     DateTime @default(now())
+  expectedDate  DateTime?
+  subTotal      Float    @default(0)
+  taxTotal      Float    @default(0)
+  grandTotal    Float    @default(0)
+  notes         String?
+
+  createdById String?
+  createdBy   User?   @relation("POCreatedBy", fields: [createdById], references: [id])
+  approvedById String?
+  approvedBy   User?   @relation("POApprovedBy", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items    PurchaseOrderItem[]
+  invoices PurchaseInvoice[]
+
+  @@index([status])
+}
+
+model PurchaseOrderItem {
+  id           String @id @default(cuid())
+  poId         String
+  po           PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  itemId       String
+  item         Item   @relation(fields: [itemId], references: [id])
+  quantity     Float
+  receivedQty  Float  @default(0)
+  rate         Float
+  gstRate      Float  @default(18)
+  amount       Float
+}
+
+model PurchaseInvoice {
+  id            String        @id @default(cuid())
+  number        String        @unique
+  poId          String?
+  po            PurchaseOrder? @relation(fields: [poId], references: [id])
+  vendorId      String
+  vendor        Vendor        @relation(fields: [vendorId], references: [id])
+  invoiceDate   DateTime      @default(now())
+  dueDate       DateTime?
+  subTotal      Float         @default(0)
+  taxTotal      Float         @default(0)
+  grandTotal    Float         @default(0)
+  paidAmount    Float         @default(0)
+  paymentStatus PaymentStatus @default(UNPAID)
+  fileUrl       String?       // uploaded bill (pdf/image)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  payments Payment[]
+
+  @@index([paymentStatus])
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  vendorId   String
+  vendor     Vendor   @relation(fields: [vendorId], references: [id])
+  invoiceId  String?
+  invoice    PurchaseInvoice? @relation(fields: [invoiceId], references: [id])
+  amount     Float
+  mode       String?  // Cash / Bank / UPI / Cheque
+  reference  String?
+  paidAt     DateTime @default(now())
+  note       String?
+  createdAt  DateTime @default(now())
+}
+
+// Running ledger per vendor (debit/credit)
+model VendorLedger {
+  id        String   @id @default(cuid())
+  vendorId  String
+  vendor    Vendor   @relation(fields: [vendorId], references: [id])
+  date      DateTime @default(now())
+  narration String
+  debit     Float    @default(0)
+  credit    Float    @default(0)
+  balance   Float    @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([vendorId])
+}
+
+// ---------------------------------------------------------------------------
+//  WORKSHOP (architecture ready for job cards)
+// ---------------------------------------------------------------------------
+
+model Employee {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  name       String
+  role       String   // Advisor / Technician / etc.
+  phone      String?
+  email      String?
+  userId     String?  @unique
+  user       User?    @relation(fields: [userId], references: [id])
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  advisorJobs    WorkshopJob[] @relation("Advisor")
+  technicianJobs WorkshopJob[] @relation("Technician")
+}
+
+model WorkshopJob {
+  id            String         @id @default(cuid())
+  jobNumber     String         @unique
+  customerId    String?
+  customer      Customer?      @relation(fields: [customerId], references: [id])
+  vehicleId     String?
+  vehicle       Vehicle?       @relation(fields: [vehicleId], references: [id])
+  complaint     String?
+  status        WorkshopStatus @default(RECEIVED)
+  advisorId     String?
+  advisor       Employee?      @relation("Advisor", fields: [advisorId], references: [id])
+  technicianId  String?
+  technician    Employee?      @relation("Technician", fields: [technicianId], references: [id])
+  estimate      Float?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+//  SYSTEM: settings, notifications, audit, sheet-sync
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String   // CREATE / UPDATE / DELETE / LOGIN
+  entity    String   // Item / PurchaseOrder / ...
+  entityId  String?
+  detail    String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([entity])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String?
+  user      User?            @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  body      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([isRead])
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String // JSON-encoded value
+
+  updatedAt DateTime @updatedAt
+}
+
+model SheetSyncLog {
+  id        String   @id @default(cuid())
+  entity    String
+  action    String   // CREATE / UPDATE / DELETE
+  status    String   // SUCCESS / ERROR / RETRY
+  message   String?
+  createdAt DateTime @default(now())
+
+  @@index([status])
+}
