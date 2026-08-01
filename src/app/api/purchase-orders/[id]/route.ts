@@ -1,6 +1,6 @@
 // ============================================================================
 //  /api/purchase-orders/[id]  —  status transitions (PATCH)
-//  actions: submit · approve · send · cancel
+//  actions: submit · approve · reject · send · cancel
 // ============================================================================
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -30,6 +30,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       data.status = "APPROVED";
       data.approvedById = session.id;
       data.approvedAt = new Date();
+      break;
+    case "reject":
+      if (!can(session.role, "purchase.approve")) return forbidden();
+      if (!["DRAFT", "PENDING_APPROVAL"].includes(existing.status)) return bad("Only draft or pending orders can be rejected.");
+      data.status = "CANCELLED";
       break;
     case "send":
       if (!can(session.role, "purchase.manage")) return forbidden();
