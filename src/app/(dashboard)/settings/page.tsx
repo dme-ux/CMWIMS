@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Save, Building2, Sheet } from "lucide-react";
+import Link from "next/link";
+import { Save, Building2, Sheet, Users, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-/** Settings — company profile + Google Sheets live-sync configuration. */
+/** Settings — company profile + Google Sheets sync + link to user management. */
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -45,12 +46,24 @@ export default function SettingsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold text-ink dark:text-slate-100">Settings</h1>
-          <p className="text-sm text-ink-muted">Company profile and integrations.</p>
+          <p className="text-sm text-ink-muted">Company profile, integrations and access.</p>
         </div>
         <Button onClick={save} loading={saving}><Save className="h-4 w-4" /> Save changes</Button>
       </div>
 
       {msg && <p className="rounded-lg bg-brand-50 px-4 py-2.5 text-sm text-brand-700">{msg}</p>}
+
+      {/* User management link */}
+      <Link href="/users" className="flex items-center justify-between rounded-2xl border border-slate-200/70 bg-white p-5 shadow-card transition hover:border-brand-300 hover:shadow-glass dark:border-white/10 dark:bg-[rgb(var(--surface))]">
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/10"><Users className="h-5 w-5" /></div>
+          <div>
+            <h3 className="font-display text-sm font-semibold text-ink dark:text-slate-100">User Management &amp; Access Control</h3>
+            <p className="text-xs text-ink-muted">Add users, assign roles, reset passwords.</p>
+          </div>
+        </div>
+        <ChevronRight className="h-5 w-5 text-ink-muted" />
+      </Link>
 
       {/* Company profile */}
       <Card icon={<Building2 className="h-5 w-5" />} title="Company profile">
