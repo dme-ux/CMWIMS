@@ -7,15 +7,15 @@ import { Button } from "@/components/ui/button";
 
 type Item = { id: string; name: string; sku: string; currentStock: number };
 
-/** Add stock directly, without a purchase order. */
 export function DirectInForm({ items }: { items: Item[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [itemId, setItemId] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [rate, setRate] = useState<number | "">("");
-  const [reason, setReason] = useState("");
-  const [reference, setReference] = useState("");
+  const [vendorName, setVendorName] = useState("");
+  const [poNumber, setPoNumber] = useState("");
+  const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -27,12 +27,12 @@ export function DirectInForm({ items }: { items: Item[] }) {
       const res = await fetch("/api/stock/direct-in", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId, quantity, rate, reason, reference }),
+        body: JSON.stringify({ itemId, quantity, rate, vendorName, poNumber, note }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not add stock.");
       setMsg({ ok: true, text: `Stock added. New stock: ${data.newStock}.` });
-      setQuantity(1); setRate(""); setReason(""); setReference("");
+      setQuantity(1); setRate(""); setVendorName(""); setPoNumber(""); setNote("");
       router.refresh();
     } catch (e: any) {
       setMsg({ ok: false, text: e.message });
@@ -54,29 +54,18 @@ export function DirectInForm({ items }: { items: Item[] }) {
         <div className="border-t border-slate-100 p-5 dark:border-white/5">
           {msg && <p className={`mb-3 rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>{msg.text}</p>}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <label className="block lg:col-span-2">
+            <label className="block lg:col-span-3">
               <span className="mb-1 block text-xs font-medium text-ink-muted">Item</span>
               <select value={itemId} onChange={(e) => setItemId(e.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-200 dark:border-white/10 dark:bg-white/5">
                 <option value="">— Select item —</option>
                 {items.map((i) => <option key={i.id} value={i.id}>{i.name} ({i.sku}) · {i.currentStock} in stock</option>)}
               </select>
             </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-ink-muted">Quantity</span>
-              <input type="number" min={1} value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-200 dark:border-white/10 dark:bg-white/5" />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-ink-muted">Rate (optional)</span>
-              <input type="number" value={rate} onChange={(e) => setRate(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Avg cost if blank" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-200 dark:border-white/10 dark:bg-white/5" />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-ink-muted">Reason</span>
-              <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Opening / found stock" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-200 dark:border-white/10 dark:bg-white/5" />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-ink-muted">Reference</span>
-              <input value={reference} onChange={(e) => setReference(e.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-200 dark:border-white/10 dark:bg-white/5" />
-            </label>
+            <F label="Quantity"><input type="number" min={1} value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} className={inputCls} /></F>
+            <F label="Rate (optional)"><input type="number" value={rate} onChange={(e) => setRate(e.target.value === "" ? "" : Number(e.target.value))} placeholder="Avg cost if blank" className={inputCls} /></F>
+            <F label="Vendor name (optional)"><input value={vendorName} onChange={(e) => setVendorName(e.target.value)} className={inputCls} /></F>
+            <F label="PO number (optional)"><input value={poNumber} onChange={(e) => setPoNumber(e.target.value)} className={inputCls} /></F>
+            <F label="Note (optional)"><input value={note} onChange={(e) => setNote(e.target.value)} className={inputCls} /></F>
           </div>
           <div className="mt-4 flex justify-end">
             <Button onClick={submit} loading={busy}><ArrowDownToLine className="h-4 w-4" /> Add stock</Button>
@@ -85,4 +74,9 @@ export function DirectInForm({ items }: { items: Item[] }) {
       )}
     </div>
   );
+}
+
+const inputCls = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-300 focus:ring-2 focus:ring-brand-200 dark:border-white/10 dark:bg-white/5";
+function F({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="block"><span className="mb-1 block text-xs font-medium text-ink-muted">{label}</span>{children}</label>;
 }
