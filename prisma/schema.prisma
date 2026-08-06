@@ -580,3 +580,21 @@ model SheetSyncLog {
 
   @@index([status])
 }
+
+// ---------------------------------------------------------------------------
+//  GATE PASS (vehicle delivery)
+// ---------------------------------------------------------------------------
+model GatePass {
+  id           String   @id @default(cuid())
+  number       String   @unique
+  date         DateTime @default(now())
+  partyName    String
+  vehicleNo    String
+  purpose      String?
+  authorisedBy String?
+  createdById  String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+}
+
