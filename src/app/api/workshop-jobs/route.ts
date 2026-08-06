@@ -8,6 +8,7 @@ import { can } from "@/lib/auth/rbac";
 import { generateJobNumber, getJobs } from "@/lib/workshop";
 
 const num = (v: unknown) => (v === "" || v == null ? null : Number(v) || 0);
+const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
 
 export async function GET() {
   const session = await getSession();
@@ -35,9 +36,13 @@ export async function POST(req: NextRequest) {
         customerId: b.customerId || null,
         complaint: b.complaint.trim(),
         vehicleNo: b.vehicleNo?.trim() ? b.vehicleNo.trim().toUpperCase() : null,
-        model: b.model?.trim() || null,
+        model: str(b.model),
         odometer: num(b.odometer),
-        contactNo: b.contactNo?.trim() || null,
+        contactNo: str(b.contactNo),
+        serviceType: str(b.serviceType),
+        additionalRequests: str(b.additionalRequests),
+        custSignature: typeof b.custSignature === "string" && b.custSignature.startsWith("data:") ? b.custSignature : null,
+        advisorSignature: typeof b.advisorSignature === "string" && b.advisorSignature.startsWith("data:") ? b.advisorSignature : null,
         estimate: num(b.estimate),
         status: "RECEIVED",
       },
