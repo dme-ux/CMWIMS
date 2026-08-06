@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Boxes, Database, ArrowDownToLine, ArrowUpFromLine,
-  ShoppingCart, Wallet, Wrench, BarChart3, FileText, Settings, ChevronRight,
+  ShoppingCart, Wallet, Wrench, Ticket, BarChart3, FileText, Settings, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { can, type Permission, type Role } from "@/lib/auth/rbac";
@@ -27,6 +27,7 @@ const NAV: NavItem[] = [
   { label: "Purchase", href: "/purchase", icon: ShoppingCart, perm: "purchase.view" },
   { label: "Accounting", href: "/accounting", icon: Wallet, perm: "accounts.view" },
   { label: "Workshop", href: "/workshop", icon: Wrench, perm: "workshop.view" },
+  { label: "Gate Pass", href: "/gate-pass", icon: Ticket, perm: "workshop.view" },
   { label: "Reports", href: "/reports", icon: BarChart3, perm: "reports.view" },
   { label: "Audit Log", href: "/audit", icon: FileText, perm: "settings.manage" },
   { label: "Settings", href: "/settings", icon: Settings, perm: "settings.manage" },
@@ -38,7 +39,6 @@ export function Sidebar({ role }: { role: Role }) {
 
   return (
     <aside className="sticky top-0 hidden h-screen w-64 flex-col border-r border-slate-200/70 bg-white/80 backdrop-blur-xl dark:border-white/10 dark:bg-[rgb(var(--surface))]/80 lg:flex">
-      {/* brand */}
       <div className="flex items-center gap-3 border-b border-slate-200/70 px-5 py-4 dark:border-white/10">
         <Image src="/logo.jpeg" alt="CMW" width={40} height={40} className="rounded-lg" />
         <div className="leading-tight">
@@ -47,7 +47,6 @@ export function Sidebar({ role }: { role: Role }) {
         </div>
       </div>
 
-      {/* nav */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {items.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
