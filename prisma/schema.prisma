@@ -522,6 +522,10 @@ model WorkshopJob {
   model         String?
   odometer      Int?
   contactNo     String?
+  serviceType         String?
+  additionalRequests  String?
+  custSignature       String?
+  advisorSignature    String?
   status        WorkshopStatus @default(RECEIVED)
   advisorId     String?
   advisor       Employee?      @relation("Advisor", fields: [advisorId], references: [id])
