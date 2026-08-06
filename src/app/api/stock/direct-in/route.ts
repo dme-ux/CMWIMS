@@ -1,8 +1,3 @@
-// ============================================================================
-//  /api/stock/direct-in  —  add stock directly without a PO (POST).
-//  Increases stock, updates weighted average cost, records an ADJUSTMENT
-//  movement. Use for opening/found stock or off-PO receipts.
-// ============================================================================
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth/session";
@@ -21,6 +16,10 @@ export async function POST(req: NextRequest) {
   const qty = num(b.quantity);
   if (qty <= 0) return NextResponse.json({ error: "Enter a quantity greater than zero." }, { status: 400 });
 
+  const parts = ["Direct in"];
+  if (b.vendorName?.trim()) parts.push(`Vendor: ${b.vendorName.trim()}`);
+  const reasonText = parts.join(" · ");
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       const item = await tx.item.findUniqueOrThrow({ where: { id: b.itemId } });
@@ -38,8 +37,9 @@ export async function POST(req: NextRequest) {
           oldStock,
           newStock,
           rate,
-          reference: b.reference || null,
-          reason: b.reason?.trim() || "Direct stock in",
+          reference: b.poNumber?.trim() || b.reference?.trim() || null,
+          reason: reasonText,
+          locationNote: b.note?.trim() || null,
           userId: session.id,
         },
       });
