@@ -16,6 +16,8 @@ export default async function WorkshopPage() {
   const jobsData = jobs.map((j) => ({
     id: j.id, jobNumber: j.jobNumber, complaint: j.complaint, status: j.status,
     estimate: j.estimate, createdAt: j.createdAt.toISOString(),
+    vehicleNo: (j as any).vehicleNo ?? null, model: (j as any).model ?? null,
+    odometer: (j as any).odometer ?? null, contactNo: (j as any).contactNo ?? null,
     customer: j.customer ? { name: j.customer.name } : null,
   }));
 
