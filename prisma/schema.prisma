@@ -518,6 +518,10 @@ model WorkshopJob {
   vehicleId     String?
   vehicle       Vehicle?       @relation(fields: [vehicleId], references: [id])
   complaint     String?
+  vehicleNo     String?
+  model         String?
+  odometer      Int?
+  contactNo     String?
   status        WorkshopStatus @default(RECEIVED)
   advisorId     String?
   advisor       Employee?      @relation("Advisor", fields: [advisorId], references: [id])
