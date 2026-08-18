@@ -1,59 +1,18 @@
-// ============================================================================
-//  /api/workshop-jobs  —  list (GET) + create (POST)
-// ============================================================================
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
-import { generateJobNumber, getJobs } from "@/lib/workshop";
-
-const num = (v: unknown) => (v === "" || v == null ? null : Number(v) || 0);
-const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
-
-export async function GET() {
-  const session = await getSession();
-  if (!session || !can(session.role, "workshop.view")) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const jobs = await getJobs();
-  return NextResponse.json({ jobs });
-}
-
-export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session || !can(session.role, "workshop.manage")) {
-    return NextResponse.json({ error: "You don't have permission to create job cards." }, { status: 403 });
-  }
-
-  try {
-    const b = await req.json();
-    if (!b.complaint?.trim()) return NextResponse.json({ error: "Enter the complaint / work required." }, { status: 400 });
-
-    const jobNumber = await generateJobNumber();
-    const job = await prisma.workshopJob.create({
-      data: {
-        jobNumber,
-        customerId: b.customerId || null,
-        complaint: b.complaint.trim(),
-        vehicleNo: b.vehicleNo?.trim() ? b.vehicleNo.trim().toUpperCase() : null,
-        model: str(b.model),
-        odometer: num(b.odometer),
-        contactNo: str(b.contactNo),
-        serviceType: str(b.serviceType),
-        additionalRequests: str(b.additionalRequests),
-        custSignature: typeof b.custSignature === "string" && b.custSignature.startsWith("data:") ? b.custSignature : null,
-        advisorSignature: typeof b.advisorSignature === "string" && b.advisorSignature.startsWith("data:") ? b.advisorSignature : null,
-        estimate: num(b.estimate),
-        status: "RECEIVED",
-      },
-    });
-
-    await prisma.auditLog.create({
-      data: { userId: session.id, action: "CREATE", entity: "WorkshopJob", entityId: job.id, detail: jobNumber },
-    });
-
-    return NextResponse.json({ job });
-  } catch {
-    return NextResponse.json({ error: "Could not create the job card." }, { status: 500 });
-  }
-}
+import { NextRequest,NextResponse } from "next/server";import { prisma } from "@/lib/prisma";import { getSession } from "@/lib/auth/session";import { can } from "@/lib/auth/rbac";import { customerCode } from "@/lib/customer-vehicle";import { generateJobNumber,getJobs } from "@/lib/workshop";
+const str=(v:unknown)=>typeof v==='string'&&v.trim()?v.trim():null; const num=(v:unknown)=>v===''||v==null?null:Number(v)||null; const yn=(v:any)=>v===true||v==='YES';
+function dt(date:any,time:any){if(!date)return new Date();const t=typeof time==='string'&&time?time:'00:00';const d=new Date(`${date}T${t}:00+05:30`);return isNaN(d.getTime())?new Date():d}
+export async function GET(){const s=await getSession();if(!s||!can(s.role,'workshop.view'))return NextResponse.json({error:'Unauthorized'},{status:401});return NextResponse.json({jobs:await getJobs()})}
+export async function POST(req:NextRequest){const s=await getSession();if(!s||!can(s.role,'workshop.manage'))return NextResponse.json({error:"You don't have permission to create job cards."},{status:403});try{const b=await req.json();if(!b.customerName?.trim())return NextResponse.json({error:'Customer name is required.'},{status:400});if(!b.contactNo?.trim())return NextResponse.json({error:'Mobile number is required.'},{status:400});if(!b.vehicleNo?.trim())return NextResponse.json({error:'Car registration number is required.'},{status:400});if(!b.carBrand?.trim())return NextResponse.json({error:'Car brand is required.'},{status:400});if(!b.serviceType?.trim())return NextResponse.json({error:'Service type is required.'},{status:400});if(!b.fuelType?.trim())return NextResponse.json({error:'Fuel type is required.'},{status:400});
+ const receivedAt=dt(b.jobDate,b.inTime); const jobNumber=await generateJobNumber(receivedAt); const mobile=b.contactNo.trim(); const reg=b.vehicleNo.trim().toUpperCase();
+ const result=await prisma.$transaction(async tx=>{
+   let customer=b.customerId?await tx.customer.findUnique({where:{id:b.customerId}}):null;
+   if(!customer) customer=await tx.customer.findFirst({where:{phone:mobile}});
+   if(customer) customer=await tx.customer.update({where:{id:customer.id},data:{name:b.customerName.trim(),phone:mobile,email:str(b.emailId),address:str(b.address)}});
+   else customer=await tx.customer.create({data:{code:customerCode(),name:b.customerName.trim(),phone:mobile,email:str(b.emailId),address:str(b.address)}});
+   let vehicle=b.vehicleId?await tx.vehicle.findUnique({where:{id:b.vehicleId}}):await tx.vehicle.findUnique({where:{registration:reg}});
+   const vehicleData={customerId:customer.id,registration:reg,vin:str(b.vin),chassisNumber:str(b.chassisNumber),engineNumber:str(b.engineNumber),brand:str(b.carBrand),modelName:str(b.model),variant:str(b.variant),fuelType:str(b.fuelType),lastOdometer:num(b.odometer)};
+   if(vehicle) vehicle=await tx.vehicle.update({where:{id:vehicle.id},data:vehicleData}); else vehicle=await tx.vehicle.create({data:vehicleData});
+   const job=await tx.workshopJob.create({data:{jobNumber,customerId:customer.id,vehicleId:vehicle.id,customerName:b.customerName.trim(),contactNo:mobile,emailId:str(b.emailId),vehicleNo:reg,carBrand:str(b.carBrand),model:str(b.model),vin:str(b.vin),chassisNumber:str(b.chassisNumber),engineNumber:str(b.engineNumber),odometer:num(b.odometer),inTime:str(b.inTime),receivedAt,serviceType:str(b.serviceType),complaint:str(b.complaint)||str(b.serviceType),additionalRequests:str(b.additionalRequests),estimate:num(b.estimate),fuelType:str(b.fuelType),fuelReading:str(b.fuelReading),headRest:str(b.headRest),perfume:str(b.perfume),speaker:str(b.speaker),jackSet:str(b.jackSet),toolKit:str(b.toolKit),spareWheel:str(b.spareWheel),floorMats:str(b.floorMats),rcBook:str(b.rcBook),insuranceStatus:str(b.insuranceStatus),insuranceCompany:str(b.insuranceCompany),insuranceExpiry:b.insuranceExpiry?new Date(`${b.insuranceExpiry}T00:00:00+05:30`):null,custSignature:typeof b.custSignature==='string'&&b.custSignature.startsWith('data:')?b.custSignature:null,customerSignatureRequired:yn(b.customerSignatureRequired),advisorSignature:typeof b.advisorSignature==='string'&&b.advisorSignature.startsWith('data:')?b.advisorSignature:null,advisorSignatureRequired:yn(b.advisorSignatureRequired),emailRequested:!!b.emailRequested,emailStatus:b.emailRequested?'PENDING_SETUP':'NOT_REQUESTED',remarks:str(b.remarks),status:'RECEIVED'}});
+   await tx.auditLog.create({data:{userId:s.id,action:'CREATE',entity:'WorkshopJob',entityId:job.id,detail:`${jobNumber} · ${reg} · ${customer.name}`}});return job;
+ }); return NextResponse.json({job:result});
+ }catch(e:any){console.error(e);return NextResponse.json({error:e.message||'Could not create job card.'},{status:400})}}
