@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   LayoutDashboard, Boxes, Database, ArrowDownToLine, ArrowUpFromLine,
-  ShoppingCart, Wallet, Wrench, Ticket, BarChart3, FileText, Settings, ChevronRight,
+  ShoppingCart, Wallet, Wrench, Ticket, BarChart3, FileText, Settings, ChevronRight, Users, CarFront,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { can, type Permission, type Role } from "@/lib/auth/rbac";
@@ -26,6 +26,8 @@ const NAV: NavItem[] = [
   { label: "Outward", href: "/outward", icon: ArrowUpFromLine, perm: "inventory.manage" },
   { label: "Purchase", href: "/purchase", icon: ShoppingCart, perm: "purchase.view" },
   { label: "Accounting", href: "/accounting", icon: Wallet, perm: "accounts.view" },
+  { label: "Customers", href: "/customers", icon: Users, perm: "workshop.view" },
+  { label: "Vehicles", href: "/vehicles", icon: CarFront, perm: "workshop.view" },
   { label: "Workshop", href: "/workshop", icon: Wrench, perm: "workshop.view" },
   { label: "Gate Pass", href: "/gate-pass", icon: Ticket, perm: "workshop.view" },
   { label: "Reports", href: "/reports", icon: BarChart3, perm: "reports.view" },
