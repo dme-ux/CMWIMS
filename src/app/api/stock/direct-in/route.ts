@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       await tx.stockMovement.create({
         data: {
           itemId: item.id,
-          type: "ADJUSTMENT",
+          type: "INWARD_GRN",
           quantity: qty,
           oldStock,
           newStock,
