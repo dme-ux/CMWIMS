@@ -153,10 +153,14 @@ model Customer {
   code      String   @unique
   name      String
   phone     String?
+  altPhone  String?
   email     String?
   gstin     String?
   address   String?
   city      String?
+  state     String?
+  pincode   String?
+  notes     String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -165,6 +169,8 @@ model Customer {
   workshopJobs  WorkshopJob[]
 
   @@index([name])
+  @@index([phone])
+  @@index([email])
 }
 
 model VehicleModel {
@@ -195,17 +201,27 @@ model Vehicle {
   vin           String?
   chassisNumber String?
   engineNumber  String?
+  brand         String?
+  modelName     String?
+  variant       String?
+  fuelType      String?
+  transmission  String?
   year          Int?
   color         String?
+  lastOdometer  Int?
   customerId    String?
   customer      Customer? @relation(fields: [customerId], references: [id])
   modelId       String?
   model         VehicleModel? @relation(fields: [modelId], references: [id])
   createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
 
   workshopJobs WorkshopJob[]
 
   @@index([chassisNumber])
+  @@index([vin])
+  @@index([brand])
+  @@index([modelName])
 }
 
 model Brand {
@@ -367,6 +383,7 @@ model Item {
   poItems         PurchaseOrderItem[]
   crossReferences ItemCrossReference[]
   compatibilities ItemVehicleCompatibility[]
+  workshopJobParts WorkshopJobPart[]
   locationStocks  ItemLocationStock[]
 
   @@index([name])
@@ -601,25 +618,89 @@ model WorkshopJob {
   customer      Customer?      @relation(fields: [customerId], references: [id])
   vehicleId     String?
   vehicle       Vehicle?       @relation(fields: [vehicleId], references: [id])
-  complaint     String?
-  vehicleNo     String?
-  model         String?
-  odometer      Int?
+
+  // Customer / vehicle snapshot on the job card
+  customerName  String?
   contactNo     String?
+  emailId       String?
+  vehicleNo     String?
+  carBrand      String?
+  model         String?
+  vin           String?
+  chassisNumber String?
+  engineNumber  String?
+  odometer      Int?
+  inTime        String?
+  receivedAt    DateTime       @default(now())
+
+  // Service request
   serviceType         String?
+  complaint           String?
   additionalRequests  String?
+  estimate             Float?
+
+  // Vehicle receiving / inventory checklist (migrated from old CMW Job Card)
+  fuelType        String?
+  fuelReading     String?
+  headRest        String?
+  perfume         String?
+  speaker         String?
+  jackSet         String?
+  toolKit         String?
+  spareWheel      String?
+  floorMats       String?
+  rcBook          String?
+  insuranceStatus String?
+  insuranceCompany String?
+  insuranceExpiry DateTime?
+
+  // Signatures / communication
   custSignature       String?
+  customerSignatureRequired Boolean @default(false)
   advisorSignature    String?
+  advisorSignatureRequired Boolean @default(false)
+  emailRequested      Boolean @default(false)
+  emailStatus         String? // NOT_REQUESTED / PENDING_SETUP / SENT / FAILED
+
   status        WorkshopStatus @default(RECEIVED)
+  remarks       String?
   advisorId     String?
   advisor       Employee?      @relation("Advisor", fields: [advisorId], references: [id])
   technicianId  String?
   technician    Employee?      @relation("Technician", fields: [technicianId], references: [id])
-  estimate      Float?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
+  parts WorkshopJobPart[]
+
   @@index([status])
+  @@index([createdAt])
+  @@index([vehicleNo])
+  @@index([contactNo])
+}
+
+model WorkshopJobPart {
+  id              String      @id @default(cuid())
+  jobId           String
+  job             WorkshopJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  itemId          String
+  item             Item        @relation(fields: [itemId], references: [id])
+  locationStockId String?
+  warehouseId     String?
+  rackId          String?
+  shelfId         String?
+  binId           String?
+  locationLabel   String?
+  quantity        Float
+  returnedQty     Float       @default(0)
+  rate            Float       @default(0)
+  issuedById      String?
+  issuedAt        DateTime    @default(now())
+  note            String?
+
+  @@index([jobId])
+  @@index([itemId])
+  @@index([issuedAt])
 }
 
 // ---------------------------------------------------------------------------
