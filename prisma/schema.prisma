@@ -174,8 +174,9 @@ model VehicleModel {
   oemBrand   OEMBrand? @relation(fields: [oemBrandId], references: [id])
   createdAt DateTime @default(now())
 
-  vehicles Vehicle[]
-  items    Item[]
+  vehicles        Vehicle[]
+  items           Item[]
+  compatibilities ItemVehicleCompatibility[]
 
   @@unique([name, oemBrandId])
 }
@@ -255,8 +256,9 @@ model Warehouse {
   name      String   @unique
   address   String?
   createdAt DateTime @default(now())
-  racks     Rack[]
-  items     Item[]
+  racks          Rack[]
+  items          Item[]
+  locationStocks ItemLocationStock[]
 }
 
 model Rack {
@@ -265,8 +267,9 @@ model Rack {
   warehouseId String
   warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
   createdAt   DateTime @default(now())
-  shelves     Shelf[]
-  items       Item[]
+  shelves        Shelf[]
+  items          Item[]
+  locationStocks ItemLocationStock[]
 
   @@unique([name, warehouseId])
 }
@@ -277,8 +280,9 @@ model Shelf {
   rackId    String
   rack      Rack     @relation(fields: [rackId], references: [id])
   createdAt DateTime @default(now())
-  bins      Bin[]
-  items     Item[]
+  bins           Bin[]
+  items          Item[]
+  locationStocks ItemLocationStock[]
 
   @@unique([name, rackId])
 }
@@ -289,7 +293,8 @@ model Bin {
   shelfId   String
   shelf     Shelf    @relation(fields: [shelfId], references: [id])
   createdAt DateTime @default(now())
-  items     Item[]
+  items          Item[]
+  locationStocks ItemLocationStock[]
 
   @@unique([name, shelfId])
 }
@@ -354,12 +359,75 @@ model Item {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  stockMovements StockMovement[]
-  poItems        PurchaseOrderItem[]
+  stockMovements  StockMovement[]
+  poItems         PurchaseOrderItem[]
+  crossReferences ItemCrossReference[]
+  compatibilities ItemVehicleCompatibility[]
+  locationStocks  ItemLocationStock[]
 
   @@index([name])
   @@index([partNumber])
   @@index([oemNumber])
+}
+
+// Alternate / manufacturer / superseded numbers for super-fast part lookup
+model ItemCrossReference {
+  id        String   @id @default(cuid())
+  itemId    String
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  code      String
+  type      String?  // OEM / AFTERMARKET / SUPERSEDED / ALTERNATE / MANUFACTURER
+  brand     String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@unique([itemId, code])
+  @@index([code])
+}
+
+// One spare part can fit many luxury vehicle models.
+model ItemVehicleCompatibility {
+  id             String       @id @default(cuid())
+  itemId         String
+  item           Item         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  vehicleModelId String
+  vehicleModel   VehicleModel @relation(fields: [vehicleModelId], references: [id], onDelete: Cascade)
+  variant        String?
+  engineCode     String?
+  fuelType       String?
+  yearFrom       Int?
+  yearTo         Int?
+  note           String?
+  createdAt      DateTime     @default(now())
+
+  @@unique([itemId, vehicleModelId, variant, engineCode, yearFrom, yearTo])
+  @@index([vehicleModelId])
+  @@index([itemId])
+}
+
+// Physical stock by exact Warehouse -> Rack -> Shelf -> Bin.
+// Item.currentStock remains the total cache for compatibility with existing modules.
+model ItemLocationStock {
+  id            String    @id @default(cuid())
+  itemId        String
+  item          Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  warehouseId   String
+  warehouse     Warehouse @relation(fields: [warehouseId], references: [id])
+  rackId        String?
+  rack          Rack?     @relation(fields: [rackId], references: [id])
+  shelfId       String?
+  shelf         Shelf?    @relation(fields: [shelfId], references: [id])
+  binId         String?
+  bin            Bin?      @relation(fields: [binId], references: [id])
+  quantity      Float      @default(0)
+  reservedQty   Float      @default(0)
+  updatedAt     DateTime   @updatedAt
+  createdAt     DateTime   @default(now())
+
+  @@unique([itemId, warehouseId, rackId, shelfId, binId])
+  @@index([itemId])
+  @@index([warehouseId])
+  @@index([binId])
 }
 
 // Complete audit trail of every stock change
