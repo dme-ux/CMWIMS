@@ -1,6 +1,6 @@
 // CMW Phase 1 Inventory — super-fast part, cross-reference and vehicle search.
 import Link from "next/link";
-import { Plus, Pencil, PackageSearch, MapPin, Car, Layers3 } from "lucide-react";
+import { Plus, Pencil, PackageSearch, MapPin, Car, Layers3, History } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
 import { can } from "@/lib/auth/rbac";
 import { getItems, stockStatus } from "@/lib/items";
@@ -18,7 +18,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
   return <div className="space-y-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h1 className="font-display text-2xl font-bold text-ink dark:text-slate-100">Inventory · Parts Finder</h1><p className="text-sm text-ink-muted">Search SKU, part no, OEM, barcode, alternate number, car brand or model · {items.length} results</p></div>
-      {canManage && <Link href="/inventory/new" className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-glass hover:bg-brand-700"><Plus className="h-4 w-4" /> Add part</Link>}
+      <div className="flex flex-wrap gap-2"><Link href="/inventory/ledger" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-brand-600 dark:border-white/10"><History className="h-4 w-4" /> Stock Ledger</Link>{canManage && <Link href="/inventory/new" className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-glass hover:bg-brand-700"><Plus className="h-4 w-4" /> Add part</Link>}</div>
     </div>
 
     <SearchBar />
@@ -50,7 +50,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
         </tbody>
       </table></div>
     </div>
-    <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-ink-muted dark:border-white/10 dark:bg-white/5"><Layers3 className="h-4 w-4" /> Phase 1 keeps legacy total stock for existing Inward/Outward. Phase 2 will make every movement location-ledger based.</div>
+    <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-ink-muted dark:border-white/10 dark:bg-white/5"><Layers3 className="h-4 w-4" /> Phase 2B: use Stock Ledger for permanent timestamp-wise IN / OUT / adjustment history. Stock corrections are recorded as movements, not silent edits.</div>
   </div>;
 }
 
