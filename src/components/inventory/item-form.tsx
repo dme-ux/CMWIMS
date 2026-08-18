@@ -16,8 +16,8 @@ export function ItemForm({ masters, item = null, mode }: { masters: Masters; ite
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modelSearch, setModelSearch] = useState("");
-  const [crossRefText, setCrossRefText] = useState(
-    (item?.crossReferences || []).map((r: any) => r.code).join("\n")
+  const [crossRefText, setCrossRefText] = useState<string>(
+    (item?.crossReferences || []).map((r: any) => String(r.code || "")).join("\n")
   );
   const initialCompat: Compatibility[] = (item?.compatibilities || []).map((c: any) => ({
     vehicleModelId: c.vehicleModelId,
@@ -61,7 +61,7 @@ export function ItemForm({ masters, item = null, mode }: { masters: Masters; ite
   }
 
   function parseCrossRefs(): CrossRef[] {
-    return crossRefText.split(/[\n,]+/).map((x) => x.trim()).filter(Boolean).map((code) => ({ code, type: "ALTERNATE" }));
+    return crossRefText.split(/[\n,]+/).map((x: string) => x.trim()).filter(Boolean).map((code: string) => ({ code, type: "ALTERNATE" }));
   }
 
   async function submit() {
