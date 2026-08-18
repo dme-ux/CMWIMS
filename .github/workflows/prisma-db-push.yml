@@ -1,0 +1,53 @@
+name: Prisma Database Push
+
+on:
+  workflow_dispatch:
+
+jobs:
+  prisma-db-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Check database secrets
+        shell: bash
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "ERROR: GitHub secret DATABASE_URL is missing."
+            exit 1
+          fi
+
+          if [ -z "$DIRECT_URL" ]; then
+            echo "ERROR: GitHub secret DIRECT_URL is missing."
+            exit 1
+          fi
+
+          echo "Database secrets are available."
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Push Prisma schema to database
+        run: npx prisma db push
+
+      - name: Build application
+        run: npm run build
