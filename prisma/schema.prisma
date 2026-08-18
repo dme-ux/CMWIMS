@@ -259,6 +259,7 @@ model Warehouse {
   racks          Rack[]
   items          Item[]
   locationStocks ItemLocationStock[]
+  stockMovements StockMovement[]
 }
 
 model Rack {
@@ -270,6 +271,7 @@ model Rack {
   shelves        Shelf[]
   items          Item[]
   locationStocks ItemLocationStock[]
+  stockMovements StockMovement[]
 
   @@unique([name, warehouseId])
 }
@@ -283,6 +285,7 @@ model Shelf {
   bins           Bin[]
   items          Item[]
   locationStocks ItemLocationStock[]
+  stockMovements StockMovement[]
 
   @@unique([name, rackId])
 }
@@ -295,6 +298,7 @@ model Bin {
   createdAt DateTime @default(now())
   items          Item[]
   locationStocks ItemLocationStock[]
+  stockMovements StockMovement[]
 
   @@unique([name, shelfId])
 }
@@ -442,6 +446,16 @@ model StockMovement {
   rate         Float        @default(0)
   reference    String?      // PO no / job card / invoice
   reason       String?
+
+  // exact physical location for this movement
+  warehouseId  String?
+  warehouse    Warehouse? @relation(fields: [warehouseId], references: [id])
+  rackId       String?
+  rack         Rack?      @relation(fields: [rackId], references: [id])
+  shelfId      String?
+  shelf        Shelf?     @relation(fields: [shelfId], references: [id])
+  binId        String?
+  bin          Bin?       @relation(fields: [binId], references: [id])
   locationNote String?
   userId       String?
   user         User?        @relation("MovementUser", fields: [userId], references: [id])
@@ -450,6 +464,8 @@ model StockMovement {
   @@index([itemId])
   @@index([type])
   @@index([createdAt])
+  @@index([warehouseId])
+  @@index([binId])
 }
 
 // ---------------------------------------------------------------------------
