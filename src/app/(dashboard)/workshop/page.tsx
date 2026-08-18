@@ -2,39 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { can } from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
-import { getJobs, getWorkshopCustomers } from "@/lib/workshop";
+import { getJobs } from "@/lib/workshop";
 import { WorkshopClient } from "@/components/workshop/workshop-client";
-
-export const dynamic = "force-dynamic";
-
-export default async function WorkshopPage() {
-  const session = await getSession();
-  if (!session || !can(session.role, "workshop.view")) redirect("/dashboard");
-
-  const [jobs, customers, companySetting] = await Promise.all([
-    getJobs(),
-    getWorkshopCustomers(),
-    prisma.setting.findUnique({ where: { key: "company" } }).catch(() => null),
-  ]);
-  const company = companySetting ? JSON.parse(companySetting.value) : {};
-  const canManage = can(session.role, "workshop.manage");
-
-  const jobsData = jobs.map((j: any) => ({
-    id: j.id, jobNumber: j.jobNumber, complaint: j.complaint, status: j.status,
-    estimate: j.estimate, createdAt: j.createdAt.toISOString(),
-    vehicleNo: j.vehicleNo ?? null, model: j.model ?? null, odometer: j.odometer ?? null, contactNo: j.contactNo ?? null,
-    serviceType: j.serviceType ?? null, additionalRequests: j.additionalRequests ?? null,
-    custSignature: j.custSignature ?? null, advisorSignature: j.advisorSignature ?? null,
-    customer: j.customer ? { name: j.customer.name } : null,
-  }));
-
-  return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-ink dark:text-slate-100">Workshop · Job Cards</h1>
-        <p className="text-sm text-ink-muted">Create job cards, capture signatures, and print.</p>
-      </div>
-      <WorkshopClient jobs={jobsData} customers={customers} canManage={canManage} company={company} />
-    </div>
-  );
-}
+export const dynamic="force-dynamic";
+export default async function WorkshopPage(){const s=await getSession();if(!s||!can(s.role,'workshop.view'))redirect('/dashboard');const[jobs,companySetting,items]=await Promise.all([getJobs(),prisma.setting.findUnique({where:{key:'company'}}).catch(()=>null),prisma.item.findMany({where:{isActive:true},select:{id:true,sku:true,name:true,partNumber:true,oemNumber:true,currentStock:true,locationStocks:{include:{warehouse:true,rack:true,shelf:true,bin:true}}},orderBy:{name:'asc'}})]);let company:any={};try{company=companySetting?JSON.parse(companySetting.value):{}}catch{}const jobsData=jobs.map((j:any)=>({...j,createdAt:j.createdAt.toISOString(),updatedAt:j.updatedAt.toISOString(),receivedAt:j.receivedAt.toISOString(),insuranceExpiry:j.insuranceExpiry?.toISOString()||null,customer:j.customer?{id:j.customer.id,name:j.customer.name,phone:j.customer.phone,email:j.customer.email}:null,vehicle:j.vehicle?{id:j.vehicle.id,registration:j.vehicle.registration}:null,parts:j.parts.map((p:any)=>({...p,issuedAt:p.issuedAt.toISOString(),item:{id:p.item.id,sku:p.item.sku,name:p.item.name,partNumber:p.item.partNumber}}))}));const stockItems=items.map((x:any)=>({id:x.id,sku:x.sku,name:x.name,partNumber:x.partNumber,oemNumber:x.oemNumber,currentStock:x.currentStock,locations:x.locationStocks.map((l:any)=>({id:l.id,quantity:l.quantity,reservedQty:l.reservedQty,label:[l.warehouse?.name,l.rack?.name,l.shelf?.name,l.bin?.name].filter(Boolean).join(' · ')}))}));return <WorkshopClient jobs={jobsData} stockItems={stockItems} canManage={can(s.role,'workshop.manage')} company={company}/>}
