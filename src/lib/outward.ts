@@ -1,9 +1,8 @@
 // ============================================================================
-//  Outward helpers — issue reasons and recent outward movements.
+// Outward helpers — CMW Phase 2A location-ledger stock issue.
 // ============================================================================
 import { prisma } from "@/lib/prisma";
 
-/** Reason -> stock-movement type. All of these reduce stock. */
 export const ISSUE_REASONS: { value: string; label: string; type: string }[] = [
   { value: "WORKSHOP_CONSUMPTION", label: "Workshop consumption", type: "WORKSHOP_CONSUMPTION" },
   { value: "CUSTOMER_SALE", label: "Customer sale", type: "CUSTOMER_SALE" },
@@ -19,14 +18,25 @@ export async function getIssuableItems() {
   return prisma.item.findMany({
     where: { isActive: true },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, sku: true, currentStock: true },
+    select: {
+      id: true,
+      name: true,
+      sku: true,
+      currentStock: true,
+      reservedStock: true,
+      locationStocks: {
+        where: { quantity: { gt: 0 } },
+        include: { warehouse: true, rack: true, shelf: true, bin: true },
+        orderBy: { createdAt: "asc" },
+      },
+    },
   });
 }
 
 export async function getRecentIssues() {
   return prisma.stockMovement.findMany({
     where: { type: { in: OUT_TYPES as any } },
-    include: { item: true, user: true },
+    include: { item: true, user: true, warehouse: true, rack: true, shelf: true, bin: true },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
