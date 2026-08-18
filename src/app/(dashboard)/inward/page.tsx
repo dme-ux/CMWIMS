@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth/session";
 import { can } from "@/lib/auth/rbac";
 import { getReceivablePOs } from "@/lib/inward";
 import { getIssuableItems } from "@/lib/outward";
+import { getLocationMasters } from "@/lib/stock";
 import { poStatusMeta } from "@/lib/purchase";
 import { inr, formatDate } from "@/lib/utils";
 import { DirectInForm } from "@/components/inward/direct-in-form";
@@ -14,17 +15,16 @@ export const dynamic = "force-dynamic";
 export default async function InwardPage() {
   const session = await getSession();
   if (!session || !can(session.role, "purchase.manage")) redirect("/dashboard");
-  const [orders, items] = await Promise.all([getReceivablePOs(), getIssuableItems()]);
+  const [orders, items, locations] = await Promise.all([getReceivablePOs(), getIssuableItems(), getLocationMasters()]);
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="font-display text-2xl font-bold text-ink dark:text-slate-100">Inward · Material Receipt</h1>
-        <p className="text-sm text-ink-muted">Receive against a PO, or add stock directly.</p>
+        <p className="text-sm text-ink-muted">Phase 2A: every new receipt is assigned to an exact warehouse/location.</p>
       </div>
 
-      {/* Direct In (no PO) */}
-      <DirectInForm items={items} />
+      <DirectInForm items={items} locations={locations} />
 
       <div>
         <h2 className="mb-2 font-display text-sm font-semibold text-ink-soft dark:text-slate-300">Receive against a purchase order</h2>
