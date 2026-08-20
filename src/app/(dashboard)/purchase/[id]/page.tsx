@@ -6,6 +6,7 @@ import { can } from "@/lib/auth/rbac";
 import { getPurchaseOrderById, poStatusMeta } from "@/lib/purchase";
 import { inr, formatDate } from "@/lib/utils";
 import { POActions } from "@/components/purchase/po-actions";
+import { POPrintButton } from "@/components/purchase/po-print";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export default async function PODetailPage({ params }: { params: Promise<{ id: s
           </div>
           <p className="mt-1 text-sm text-ink-muted">{po.vendor.name} · {formatDate(po.orderDate)}</p>
         </div>
-        <POActions id={po.id} status={po.status} canManage={can(session.role, "purchase.manage")} canApprove={can(session.role, "purchase.approve")} />
+        <div className="flex flex-wrap gap-2"><POPrintButton po={po} /><POActions id={po.id} status={po.status} canManage={can(session.role, "purchase.manage")} canApprove={can(session.role, "purchase.approve")} /></div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-card dark:border-white/10 dark:bg-[rgb(var(--surface))]">
