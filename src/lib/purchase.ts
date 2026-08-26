@@ -1,17 +1,43 @@
 // ============================================================================
-//  Purchase Order data helpers.
+// Purchase Order data helpers.
 // ============================================================================
 import { prisma } from "@/lib/prisma";
 
-/** Next PO number, e.g. PO-00001 (zero-padded running count). */
+/** Concurrency-safe running document number, safely bootstrapped from live data. */
+async function nextCounter(key: "PO" | "GRN") {
+  let current = await prisma.documentCounter.findUnique({ where: { key } });
+  if (!current) {
+    const numbers = key === "PO"
+      ? (await prisma.purchaseOrder.findMany({ select: { number: true } })).map((x) => x.number)
+      : (await prisma.goodsReceipt.findMany({ select: { number: true } })).map((x) => x.number);
+    const max = numbers.reduce((m, v) => {
+      const hit = v.match(/^(?:PO|GRN)-(\d+)$/i);
+      return hit ? Math.max(m, Number(hit[1]) || 0) : m;
+    }, 0);
+    try { current = await prisma.documentCounter.create({ data: { key, lastNo: max } }); }
+    catch { current = await prisma.documentCounter.findUnique({ where: { key } }); }
+  }
+  const row = await prisma.documentCounter.upsert({
+    where: { key }, update: { lastNo: { increment: 1 } }, create: { key, lastNo: 1 },
+  });
+  return row.lastNo;
+}
+
+/** Next PO number, e.g. PO-00001. */
 export async function generatePONumber() {
-  const count = await prisma.purchaseOrder.count();
-  return `PO-${String(count + 1).padStart(5, "0")}`;
+  const n = await nextCounter("PO");
+  return `PO-${String(n).padStart(5, "0")}`;
+}
+
+/** Next GRN number, e.g. GRN-00001. */
+export async function generateGRNNumber() {
+  const n = await nextCounter("GRN");
+  return `GRN-${String(n).padStart(5, "0")}`;
 }
 
 export async function getPurchaseOrders() {
   return prisma.purchaseOrder.findMany({
-    include: { vendor: true, _count: { select: { items: true } } },
+    include: { vendor: true, _count: { select: { items: true, receipts: true } } },
     orderBy: { createdAt: "desc" },
     take: 200,
   });
@@ -25,11 +51,18 @@ export async function getPurchaseOrderById(id: string) {
       items: { include: { item: true } },
       createdBy: true,
       approvedBy: true,
+      receipts: {
+        include: {
+          receivedBy: true,
+          items: { include: { item: true, warehouse: true, rack: true, shelf: true, bin: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 }
 
-/** Vendors + items needed to build a new PO. */
+/** Vendors + items needed to build/edit a PO. */
 export async function getPOFormData() {
   const [vendors, items] = await Promise.all([
     prisma.vendor.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true, paymentTerms: true } }),
