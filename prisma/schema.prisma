@@ -112,6 +112,7 @@ model User {
   approvedOrders     PurchaseOrder[]    @relation("POApprovedBy")
   auditLogs          AuditLog[]
   notifications      Notification[]
+  goodsReceipts      GoodsReceipt[]
   employee           Employee?
 
   @@index([role])
@@ -167,6 +168,7 @@ model Customer {
 
   vehicles      Vehicle[]
   workshopJobs  WorkshopJob[]
+  stockMovements StockMovement[]
 
   @@index([name])
   @@index([phone])
@@ -217,6 +219,7 @@ model Vehicle {
   updatedAt     DateTime @default(now()) @updatedAt
 
   workshopJobs WorkshopJob[]
+  stockMovements StockMovement[]
 
   @@index([chassisNumber])
   @@index([vin])
@@ -276,6 +279,7 @@ model Warehouse {
   items          Item[]
   locationStocks ItemLocationStock[]
   stockMovements StockMovement[]
+  goodsReceiptItems GoodsReceiptItem[]
 }
 
 model Rack {
@@ -288,6 +292,7 @@ model Rack {
   items          Item[]
   locationStocks ItemLocationStock[]
   stockMovements StockMovement[]
+  goodsReceiptItems GoodsReceiptItem[]
 
   @@unique([name, warehouseId])
 }
@@ -302,6 +307,7 @@ model Shelf {
   items          Item[]
   locationStocks ItemLocationStock[]
   stockMovements StockMovement[]
+  goodsReceiptItems GoodsReceiptItem[]
 
   @@unique([name, rackId])
 }
@@ -315,6 +321,7 @@ model Bin {
   items          Item[]
   locationStocks ItemLocationStock[]
   stockMovements StockMovement[]
+  goodsReceiptItems GoodsReceiptItem[]
 
   @@unique([name, shelfId])
 }
@@ -385,6 +392,7 @@ model Item {
   compatibilities ItemVehicleCompatibility[]
   workshopJobParts WorkshopJobPart[]
   locationStocks  ItemLocationStock[]
+  goodsReceiptItems GoodsReceiptItem[]
 
   @@index([name])
   @@index([partNumber])
@@ -476,6 +484,15 @@ model StockMovement {
   locationNote String?
   userId       String?
   user         User?        @relation("MovementUser", fields: [userId], references: [id])
+
+  // optional outward/issue context
+  customerId   String?
+  customer     Customer?    @relation(fields: [customerId], references: [id])
+  vehicleId    String?
+  vehicle      Vehicle?     @relation(fields: [vehicleId], references: [id])
+  workshopJobId String?
+  workshopJob  WorkshopJob? @relation(fields: [workshopJobId], references: [id])
+
   createdAt    DateTime     @default(now())
 
   @@index([itemId])
@@ -483,6 +500,9 @@ model StockMovement {
   @@index([createdAt])
   @@index([warehouseId])
   @@index([binId])
+  @@index([customerId])
+  @@index([vehicleId])
+  @@index([workshopJobId])
 }
 
 // ---------------------------------------------------------------------------
@@ -522,6 +542,7 @@ model PurchaseOrder {
 
   items    PurchaseOrderItem[]
   invoices PurchaseInvoice[]
+  receipts GoodsReceipt[]
 
   @@index([status])
 }
@@ -537,6 +558,55 @@ model PurchaseOrderItem {
   rate         Float
   gstRate      Float  @default(18)
   amount       Float
+  receiptItems GoodsReceiptItem[]
+}
+
+model DocumentCounter {
+  key       String   @id
+  lastNo    Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model GoodsReceipt {
+  id         String   @id @default(cuid())
+  number     String   @unique
+  requestId  String   @unique
+  poId       String
+  po         PurchaseOrder @relation(fields: [poId], references: [id])
+  receivedById String?
+  receivedBy User?    @relation(fields: [receivedById], references: [id])
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  items GoodsReceiptItem[]
+
+  @@index([poId])
+  @@index([createdAt])
+}
+
+model GoodsReceiptItem {
+  id         String   @id @default(cuid())
+  receiptId  String
+  receipt    GoodsReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  poItemId   String
+  poItem     PurchaseOrderItem @relation(fields: [poItemId], references: [id])
+  itemId     String
+  item       Item     @relation(fields: [itemId], references: [id])
+  quantity   Float
+  rate       Float    @default(0)
+  warehouseId String
+  warehouse  Warehouse @relation(fields: [warehouseId], references: [id])
+  rackId     String?
+  rack       Rack? @relation(fields: [rackId], references: [id])
+  shelfId    String?
+  shelf      Shelf? @relation(fields: [shelfId], references: [id])
+  binId      String?
+  bin        Bin? @relation(fields: [binId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@index([receiptId])
+  @@index([poItemId])
+  @@index([itemId])
 }
 
 model PurchaseInvoice {
@@ -676,6 +746,7 @@ model WorkshopJob {
   parts         WorkshopJobPart[]
   estimates     WorkshopEstimate[]
   qualityChecks QualityCheck[]
+  stockMovements StockMovement[]
 
   @@index([status])
   @@index([createdAt])
