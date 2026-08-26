@@ -1,6 +1,3 @@
-// ============================================================================
-// Outward helpers — CMW Phase 2A location-ledger stock issue.
-// ============================================================================
 import { prisma } from "@/lib/prisma";
 
 export const ISSUE_REASONS: { value: string; label: string; type: string }[] = [
@@ -12,32 +9,20 @@ export const ISSUE_REASONS: { value: string; label: string; type: string }[] = [
   { value: "ADJUSTMENT", label: "Adjustment", type: "ADJUSTMENT" },
 ];
 
-const OUT_TYPES = ISSUE_REASONS.map((r) => r.type);
-
 export async function getIssuableItems() {
   return prisma.item.findMany({
-    where: { isActive: true },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      sku: true,
-      currentStock: true,
-      reservedStock: true,
-      locationStocks: {
-        where: { quantity: { gt: 0 } },
-        include: { warehouse: true, rack: true, shelf: true, bin: true },
-        orderBy: { createdAt: "asc" },
-      },
+    where: { isActive: true }, orderBy: { name: "asc" },
+    select: { id: true, name: true, sku: true, currentStock: true, reservedStock: true,
+      locationStocks: { where: { quantity: { gt: 0 } }, include: { warehouse: true, rack: true, shelf: true, bin: true }, orderBy: { createdAt: "asc" } },
     },
   });
 }
 
-export async function getRecentIssues() {
-  return prisma.stockMovement.findMany({
-    where: { type: { in: OUT_TYPES as any } },
-    include: { item: true, user: true, warehouse: true, rack: true, shelf: true, bin: true },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
+export async function getOutwardTargets() {
+  const [customers, vehicles, jobs] = await Promise.all([
+    prisma.customer.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true, code: true, phone: true } }),
+    prisma.vehicle.findMany({ orderBy: { updatedAt: "desc" }, take: 500, select: { id: true, registration: true, chassisNumber: true, brand: true, modelName: true, customerId: true } }),
+    prisma.workshopJob.findMany({ where: { status: { notIn: ["DELIVERED", "CANCELLED"] } }, orderBy: { createdAt: "desc" }, take: 300, select: { id: true, jobNumber: true, customerId: true, vehicleId: true, customerName: true, vehicleNo: true, carBrand: true, model: true } }),
+  ]);
+  return { customers, vehicles, jobs };
 }
