@@ -5,9 +5,9 @@ import { RECEIVING_CHECKLIST } from "@/lib/qc-checklists";
 
 export type PrintJob = {
   jobNumber:string; receivedAt:string; status:string; customerName:string|null; contactNo:string|null; emailId:string|null;
-  vehicleNo:string|null; carBrand:string|null; model:string|null; variant?:string|null; vin:string|null; chassisNumber:string|null;
+  vehicleNo:string|null; carBrand:string|null; model:string|null; variant?:string|null; vin?:string|null; chassisNumber:string|null;
   engineNumber:string|null; odometer:number|null; serviceType:string|null; additionalRequests:string|null; complaint:string|null;
-  estimate:number|null; receivingChecklist?:any; fuelType:string|null; fuelReading:string|null; headRest:string|null; perfume:string|null;
+  estimate?:number|null; receivingChecklist?:any; fuelType:string|null; fuelReading:string|null; headRest:string|null; perfume:string|null;
   speaker:string|null; jackSet:string|null; toolKit:string|null; spareWheel:string|null; floorMats:string|null; rcBook:string|null;
   insuranceStatus:string|null; insuranceCompany:string|null; insuranceExpiry:string|null; remarks:string|null; custSignature:string|null;
   advisorSignature:string|null; parts:{id:string;quantity:number;returnedQty:number;rate:number;locationLabel:string|null;item:{sku:string;name:string;partNumber:string|null}}[]
@@ -49,7 +49,7 @@ export function JobCardPrint({job:j,company:c,documents:d,onClose}:{job:PrintJob
             <table className="compact-table"><tbody>
               <TR a="Customer Name" b={j.customerName} c="Vehicle No." d={j.vehicleNo}/>
               <TR a="Mobile" b={j.contactNo} c="Brand / Model" d={[j.carBrand,j.model,j.variant].filter(Boolean).join(" ")}/>
-              <TR a="Mileage (KM)" b={j.odometer || "—"} c="VIN / Chassis" d={j.vin || j.chassisNumber || "—"}/>
+              <TR a="Mileage (KM)" b={j.odometer || "—"} c="Chassis Number" d={j.chassisNumber || "—"}/>
               <TR a="Email" b={j.emailId || "—"} c="Status" d={j.status}/>
             </tbody></table>
           </Block>
@@ -73,9 +73,9 @@ export function JobCardPrint({job:j,company:c,documents:d,onClose}:{job:PrintJob
             </tbody></table>
           </Block>
 
-          <Block title="4. Service Requested / Estimate">
+          <Block title="4. Service Requested">
             <table className="compact-table"><tbody>
-              <TR a="Service Type" b={j.serviceType} c="Estimated Value" d={j.estimate?`₹ ${Number(j.estimate).toLocaleString("en-IN")}`:"—"}/>
+              <TR a="Service Type" b={j.serviceType} c="Job Status" d={j.status}/>
               <tr><TH>Complaint / Work Required</TH><TD colSpan={3}>{j.complaint||"—"}</TD></tr>
               <tr><TH>Additional Request</TH><TD colSpan={3}>{j.additionalRequests||"—"}</TD></tr>
             </tbody></table>
