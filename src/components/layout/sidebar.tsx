@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Boxes, Database, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, Wallet, ClipboardList, FileSpreadsheet, ShieldCheck, Ticket, BarChart3, FileText, Settings, ChevronRight, Users, CarFront } from "lucide-react";
+import { LayoutDashboard, Boxes, Database, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, Wallet, ClipboardList, FileSpreadsheet, ShieldCheck, Ticket, BarChart3, FileText, Settings, ChevronRight, Users, CarFront, Receipt, IndianRupee, UserSquare2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { can, type Permission, type Role } from "@/lib/auth/rbac";
 interface NavItem { label:string; short:string; href:string; icon:React.ElementType; perm:Permission }
@@ -15,6 +15,9 @@ const NAV:NavItem[]=[
  {label:"Outward",short:"Out",href:"/outward",icon:ArrowUpFromLine,perm:"inventory.manage"},
  {label:"Purchase",short:"PO",href:"/purchase",icon:ShoppingCart,perm:"purchase.view"},
  {label:"Accounting",short:"Accounts",href:"/accounting",icon:Wallet,perm:"accounts.view"},
+ {label:"Expenses",short:"Expenses",href:"/expenses",icon:Receipt,perm:"expenses.view"},
+ {label:"Salary",short:"Salary",href:"/salary",icon:IndianRupee,perm:"salary.view"},
+ {label:"Employees",short:"Staff",href:"/employees",icon:UserSquare2,perm:"salary.view"},
  {label:"Customers",short:"Customer",href:"/customers",icon:Users,perm:"workshop.view"},
  {label:"Vehicles",short:"Vehicle",href:"/vehicles",icon:CarFront,perm:"workshop.view"},
  {label:"Job Cards",short:"Jobs",href:"/workshop",icon:ClipboardList,perm:"workshop.view"},

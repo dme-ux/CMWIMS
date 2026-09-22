@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Boxes, AlertTriangle, PackageX, ClipboardList, Wallet, Layers } from "lucide-react";
+import { Boxes, AlertTriangle, PackageX, ClipboardList, Wallet, Layers, Receipt, IndianRupee } from "lucide-react";
 
 interface Props {
   inventoryValue: string;
@@ -10,6 +10,8 @@ interface Props {
   outOfStock: number;
   pendingOrders: number;
   pendingPayments: string;
+  monthExpense: string;
+  monthSalary: string;
 }
 
 export function StatCards(p: Props) {
@@ -20,6 +22,8 @@ export function StatCards(p: Props) {
     { label: "Out of stock", value: p.outOfStock, icon: PackageX, tone: "red" },
     { label: "Pending orders", value: p.pendingOrders, icon: ClipboardList, tone: "brand" },
     { label: "Pending payments", value: p.pendingPayments, icon: Boxes, tone: "amber" },
+    { label: "Expenses (month)", value: p.monthExpense, icon: Receipt, tone: "brand" },
+    { label: "Salary (month)", value: p.monthSalary, icon: IndianRupee, tone: "brand" },
   ];
 
   const tones: Record<string, string> = {
@@ -29,7 +33,7 @@ export function StatCards(p: Props) {
   };
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-8">
       {cards.map((c, i) => {
         const Icon = c.icon;
         return (
