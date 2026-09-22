@@ -4,6 +4,7 @@ import { StatCards } from "@/components/dashboard/stat-cards";
 import { PurchaseTrend } from "@/components/dashboard/purchase-trend";
 import { inr } from "@/lib/utils";
 import { getMonthSalaryTotal, currentMonth } from "@/lib/salary";
+import { getSalesSummary } from "@/lib/sales";
 
 /**
  * Executive Dashboard — live KPIs pulled from the database.
@@ -14,7 +15,7 @@ export default async function DashboardPage() {
 
   // pull KPIs (all guarded so the page renders even on an empty DB)
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-  const [items, pendingPOs, unpaid, monthExpense, monthSalary] = await Promise.all([
+  const [items, pendingPOs, unpaid, monthExpense, monthSalary, monthSales] = await Promise.all([
     prisma.item
       .findMany({ select: { currentStock: true, reorderLevel: true, averageCost: true } })
       .catch(() => [] as { currentStock: number; reorderLevel: number; averageCost: number }[]),
@@ -28,6 +29,7 @@ export default async function DashboardPage() {
       .aggregate({ _sum: { amount: true }, where: { date: { gte: monthStart } } })
       .catch(() => null),
     getMonthSalaryTotal(currentMonth()).catch(() => ({ due: 0, paid: 0 })),
+    getSalesSummary(monthStart).catch(() => ({ revenue: 0, cost: 0, grossProfit: 0, margin: 0, collected: 0 })),
   ]);
 
   // Column-to-column comparisons (stock vs reorder level) are computed in JS.
@@ -54,6 +56,8 @@ export default async function DashboardPage() {
         pendingPayments={inr(Math.max(0, pendingPayments))}
         monthExpense={inr(monthExpense?._sum.amount || 0)}
         monthSalary={inr(monthSalary.due)}
+        monthSales={inr(monthSales.revenue)}
+        monthGrossProfit={inr(monthSales.grossProfit)}
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -77,6 +81,8 @@ function QuickPanel() {
           ["Record vendor payment", "/accounting/payments/new"],
           ["Add expense", "/expenses"],
           ["Manage salary", "/salary"],
+          ["Record a sale", "/sales"],
+          ["Unbilled purchase entry", "/unbilled-purchases"],
           ["New workshop entry", "/workshop/new"],
         ].map(([label, href]) => (
           <a key={href} href={href} className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-sm text-ink-soft transition hover:border-brand-300 hover:bg-brand-50 dark:border-white/10 dark:hover:bg-white/5">

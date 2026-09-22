@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Boxes, Database, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, Wallet, ClipboardList, FileSpreadsheet, ShieldCheck, Ticket, BarChart3, FileText, Settings, ChevronRight, Users, CarFront, Receipt, IndianRupee, UserSquare2 } from "lucide-react";
+import { LayoutDashboard, Boxes, Database, ArrowDownToLine, ArrowUpFromLine, ShoppingCart, Wallet, ClipboardList, FileSpreadsheet, ShieldCheck, Ticket, BarChart3, FileText, Settings, ChevronRight, Users, CarFront, Receipt, IndianRupee, UserSquare2, TrendingUp, PackageOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { can, type Permission, type Role } from "@/lib/auth/rbac";
 interface NavItem { label:string; short:string; href:string; icon:React.ElementType; perm:Permission }
@@ -14,6 +14,8 @@ const NAV:NavItem[]=[
  {label:"Inward",short:"In",href:"/inward",icon:ArrowDownToLine,perm:"purchase.manage"},
  {label:"Outward",short:"Out",href:"/outward",icon:ArrowUpFromLine,perm:"inventory.manage"},
  {label:"Purchase",short:"PO",href:"/purchase",icon:ShoppingCart,perm:"purchase.view"},
+ {label:"Unbilled Purchases",short:"No-Bill",href:"/unbilled-purchases",icon:PackageOpen,perm:"purchase.view"},
+ {label:"Sales",short:"Sales",href:"/sales",icon:TrendingUp,perm:"sales.view"},
  {label:"Accounting",short:"Accounts",href:"/accounting",icon:Wallet,perm:"accounts.view"},
  {label:"Expenses",short:"Expenses",href:"/expenses",icon:Receipt,perm:"expenses.view"},
  {label:"Salary",short:"Salary",href:"/salary",icon:IndianRupee,perm:"salary.view"},

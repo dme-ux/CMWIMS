@@ -72,10 +72,21 @@ export async function deleteEmployee(id: string) {
   return prisma.employee.delete({ where: { id } });
 }
 
+function round(n: number) {
+  return Math.round((n || 0) * 100) / 100;
+}
+
+function daysInMonth(month: string) {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(y, m, 0).getDate(); // day 0 of next month = last day of this month
+}
+
 /**
  * "Generate Salaries" — one click at the start of the month. Creates a
- * PENDING SalaryPayment row (snapshot of the employee's fixed salary) for
- * every active employee who doesn't already have one for this month.
+ * PENDING SalaryPayment row for every active employee who doesn't already
+ * have one for this month. Full attendance is assumed until "present days"
+ * is entered later. Active Advance/EMI installments are auto-deducted once,
+ * at generation time (and their remaining balance reduced accordingly).
  * Safe to click more than once — existing rows for the month are untouched.
  */
 export async function generateMonthlySalaries(month: string = currentMonth()) {
@@ -89,9 +100,39 @@ export async function generateMonthlySalaries(month: string = currentMonth()) {
 
   if (toCreate.length === 0) return { created: 0 };
 
-  await prisma.salaryPayment.createMany({
-    data: toCreate.map((e) => ({ employeeId: e.id, month, amount: e.salary, status: "PENDING" })),
-  });
+  const totalDays = daysInMonth(month);
+
+  for (const e of toCreate) {
+    // active advances/EMIs for this employee, oldest first
+    const deductions = await prisma.salaryDeduction.findMany({
+      where: { employeeId: e.id, isActive: true, remainingAmount: { gt: 0 } },
+      orderBy: { createdAt: "asc" },
+    });
+    let deductionTotal = 0;
+    for (const d of deductions) {
+      const installment = Math.min(d.installmentAmount, d.remainingAmount);
+      deductionTotal += installment;
+      const remainingAmount = round(d.remainingAmount - installment);
+      await prisma.salaryDeduction.update({
+        where: { id: d.id },
+        data: { remainingAmount, isActive: remainingAmount > 0 },
+      });
+    }
+    const grossAmount = e.salary;
+    const amount = Math.max(0, round(grossAmount - deductionTotal));
+    await prisma.salaryPayment.create({
+      data: {
+        employeeId: e.id,
+        month,
+        baseSalary: e.salary,
+        totalDays,
+        grossAmount,
+        deductions: round(deductionTotal),
+        amount,
+        status: "PENDING",
+      },
+    });
+  }
   return { created: toCreate.length };
 }
 
@@ -107,6 +148,24 @@ export async function listSalaryPayments(filters: SalaryFilters = {}) {
     include: { employee: true },
     orderBy: [{ month: "desc" }, { employee: { name: "asc" } }],
     take: 1000,
+  });
+}
+
+/**
+ * Month-end attendance entry — "kitne din present the". Recalculates the
+ * prorated gross salary (baseSalary × presentDays / totalDays) and the net
+ * payable amount (gross − deductions already applied at generation).
+ */
+export async function updateAttendance(id: string, presentDays: number, totalDays?: number) {
+  const row = await prisma.salaryPayment.findUniqueOrThrow({ where: { id } });
+  const days = totalDays ?? row.totalDays ?? daysInMonth(row.month);
+  const clampedPresent = Math.max(0, Math.min(presentDays, days));
+  const grossAmount = round((row.baseSalary * clampedPresent) / days);
+  const amount = Math.max(0, round(grossAmount - row.deductions));
+  const status = row.paidAmount >= amount && amount > 0 ? "PAID" : row.paidAmount > 0 ? "PARTIAL" : "PENDING";
+  return prisma.salaryPayment.update({
+    where: { id },
+    data: { presentDays: clampedPresent, totalDays: days, grossAmount, amount, status },
   });
 }
 
@@ -149,4 +208,45 @@ export async function getMonthSalaryTotal(month: string = currentMonth()) {
     due: agg._sum.amount || 0,
     paid: agg._sum.paidAmount || 0,
   };
+}
+
+// ---------------------------------------------------------------------------
+//  ADVANCE / EMI — money recovered from an employee's salary in installments
+// ---------------------------------------------------------------------------
+
+export type DeductionInput = {
+  employeeId: string;
+  type: "ADVANCE" | "EMI";
+  totalAmount: number;
+  installmentAmount: number;
+  notes?: string | null;
+};
+
+export async function createDeduction(input: DeductionInput) {
+  return prisma.salaryDeduction.create({
+    data: {
+      employeeId: input.employeeId,
+      type: input.type,
+      totalAmount: input.totalAmount,
+      installmentAmount: input.installmentAmount,
+      remainingAmount: input.totalAmount,
+      notes: input.notes || null,
+    },
+  });
+}
+
+export async function listDeductions(employeeId?: string) {
+  return prisma.salaryDeduction.findMany({
+    where: employeeId ? { employeeId } : undefined,
+    include: { employee: true },
+    orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
+  });
+}
+
+export async function closeDeduction(id: string) {
+  return prisma.salaryDeduction.update({ where: { id }, data: { isActive: false } });
+}
+
+export async function deleteDeduction(id: string) {
+  return prisma.salaryDeduction.delete({ where: { id } });
 }

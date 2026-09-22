@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth/session";
 import { can } from "@/lib/auth/rbac";
 import { REPORTS } from "@/lib/reports";
 import { ExportButton } from "@/components/reports/export-button";
+import { ExportPdfButton } from "@/components/reports/export-pdf-button";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ export default async function ReportPage({ params }: { params: Promise<{ report:
           <p className="text-sm text-ink-muted">{rows.length} row{rows.length === 1 ? "" : "s"} · {def.description}</p>
         </div>
         <ExportButton columns={columns} rows={rows} filename={def.key} />
+        <ExportPdfButton title={def.label} subtitle={def.description} columns={columns} rows={rows} filename={def.key} />
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-card dark:border-white/10 dark:bg-[rgb(var(--surface))]">

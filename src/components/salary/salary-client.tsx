@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Wallet, IndianRupee, CircleCheck, Clock, Users, RefreshCw, X } from "lucide-react";
+import { Wallet, IndianRupee, CircleCheck, Clock, Users, RefreshCw, X, CalendarCheck, Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExportButton } from "@/components/reports/export-button";
+import { ExportPdfButton } from "@/components/reports/export-pdf-button";
 import { inr } from "@/lib/utils";
 
 const input =
@@ -15,6 +16,11 @@ type Payment = {
   id: string;
   employeeId: string;
   month: string;
+  baseSalary: number;
+  presentDays: number | null;
+  totalDays: number;
+  grossAmount: number;
+  deductions: number;
   amount: number;
   paidAmount: number;
   status: string;
@@ -50,6 +56,8 @@ export function SalaryClient({
   const [rows, setRows] = useState(initial);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [attendance, setAttendance] = useState<Record<string, string>>({});
+  const [savingAttendance, setSavingAttendance] = useState<string | null>(null);
   const [payFor, setPayFor] = useState<Payment | null>(null);
   const [payAmount, setPayAmount] = useState("");
   const [payMode, setPayMode] = useState("Cash");
@@ -96,6 +104,26 @@ export function SalaryClient({
     }
   }
 
+  async function saveAttendance(r: Payment) {
+    const val = attendance[r.id];
+    if (val === undefined || val === "") return;
+    setSavingAttendance(r.id);
+    try {
+      const res = await fetch(`/api/salary/${r.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ presentDays: Number(val) }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Could not save attendance");
+      setRows((prev) => prev.map((row) => (row.id === d.payment.id ? { ...row, ...d.payment } : row)));
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setSavingAttendance(null);
+    }
+  }
+
   function openPay(r: Payment) {
     setPayFor(r);
     setPayAmount(String(r.amount - r.paidAmount));
@@ -125,9 +153,10 @@ export function SalaryClient({
     }
   }
 
-  const csvColumns = ["Employee", "Role", "Month", "Due", "Paid", "Pending", "Status", "Mode", "Paid On"];
+  const csvColumns = ["Employee", "Role", "Month", "Present/Total Days", "Gross", "Deductions", "Net Due", "Paid", "Pending", "Status", "Mode"];
   const csvRows = rows.map((r) => [
-    r.employee.name, r.employee.role, r.month, r.amount, r.paidAmount, r.amount - r.paidAmount, r.status, r.mode ?? "", r.paidAt ? r.paidAt.slice(0, 10) : "",
+    r.employee.name, r.employee.role, r.month, `${r.presentDays ?? r.totalDays}/${r.totalDays}`,
+    r.grossAmount, r.deductions, r.amount, r.paidAmount, r.amount - r.paidAmount, r.status, r.mode ?? "",
   ]);
 
   return (
@@ -135,11 +164,14 @@ export function SalaryClient({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-bold text-ink dark:text-slate-100">Salary</h1>
-          <p className="text-sm text-ink-muted">Monthly employee salary — generate, track, and mark as paid (Cash / Bank / UPI).</p>
+          <p className="text-sm text-ink-muted">Generate, mark attendance, and pay salaries (Cash / Bank / UPI).</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href="/employees">
             <Button variant="outline"><Users className="h-4 w-4" /> Employees</Button>
+          </Link>
+          <Link href="/salary/advances">
+            <Button variant="outline"><Landmark className="h-4 w-4" /> Advances / EMI</Button>
           </Link>
           {canManage && (
             <Button onClick={generate} loading={generating}>
@@ -167,6 +199,7 @@ export function SalaryClient({
           <input type="month" className={input + " w-auto"} value={month} onChange={(e) => setMonth(e.target.value)} />
         </label>
         <ExportButton columns={csvColumns} rows={csvRows} filename={`salary-${month}`} />
+        <ExportPdfButton title="Salary Report" subtitle={monthLabel(month)} columns={csvColumns} rows={csvRows} filename={`salary-${month}`} />
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-card dark:border-white/10 dark:bg-[rgb(var(--surface))]">
@@ -175,22 +208,23 @@ export function SalaryClient({
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-ink-muted dark:bg-white/5">
               <tr>
                 <th className="px-4 py-3">Employee</th>
-                <th className="px-4 py-3">Role</th>
-                <th className="px-4 py-3 text-right">Due</th>
+                <th className="px-4 py-3">Present Days</th>
+                <th className="px-4 py-3 text-right">Gross</th>
+                <th className="px-4 py-3 text-right">Deductions</th>
+                <th className="px-4 py-3 text-right">Net Due</th>
                 <th className="px-4 py-3 text-right">Paid</th>
                 <th className="px-4 py-3 text-right">Pending</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Mode</th>
                 {canManage && <th className="px-4 py-3 text-right">Action</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
               {loading && (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-ink-muted">Loading…</td></tr>
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-ink-muted">Loading…</td></tr>
               )}
               {!loading && rows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-16 text-center text-ink-muted">
+                  <td colSpan={9} className="px-4 py-16 text-center text-ink-muted">
                     <Wallet className="mx-auto mb-3 h-8 w-8 opacity-40" />
                     No salary entries for {monthLabel(month)} yet.
                   </td>
@@ -199,15 +233,43 @@ export function SalaryClient({
               {rows.map((r) => {
                 const [label, cls] = statusMeta[r.status] ?? [r.status, "bg-slate-100 text-slate-600"];
                 const pendingAmt = r.amount - r.paidAmount;
+                const attVal = attendance[r.id] ?? (r.presentDays !== null ? String(r.presentDays) : "");
                 return (
                   <tr key={r.id} className="hover:bg-brand-50/40 dark:hover:bg-white/5">
-                    <td className="px-4 py-3 font-medium text-ink dark:text-slate-100">{r.employee.name}</td>
-                    <td className="px-4 py-3 text-ink-soft dark:text-slate-300">{r.employee.role}</td>
-                    <td className="px-4 py-3 text-right">{inr(r.amount)}</td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-ink dark:text-slate-100">{r.employee.name}</div>
+                      <div className="text-xs text-ink-muted">{r.employee.role}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {canManage ? (
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number" min="0" max={r.totalDays}
+                            className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm outline-none focus:border-brand-300 dark:border-white/10 dark:bg-white/5"
+                            value={attVal}
+                            placeholder={String(r.totalDays)}
+                            onChange={(e) => setAttendance((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                          />
+                          <span className="text-xs text-ink-muted">/ {r.totalDays}</span>
+                          <button
+                            onClick={() => saveAttendance(r)}
+                            disabled={savingAttendance === r.id}
+                            className="rounded-lg p-1 text-brand-600 hover:bg-brand-50 disabled:opacity-40 dark:hover:bg-white/10"
+                            title="Save attendance"
+                          >
+                            <CalendarCheck className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-ink-soft dark:text-slate-300">{r.presentDays ?? r.totalDays} / {r.totalDays}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right">{inr(r.grossAmount)}</td>
+                    <td className="px-4 py-3 text-right text-red-600">{r.deductions > 0 ? `− ${inr(r.deductions)}` : "—"}</td>
+                    <td className="px-4 py-3 text-right font-medium">{inr(r.amount)}</td>
                     <td className="px-4 py-3 text-right">{inr(r.paidAmount)}</td>
-                    <td className="px-4 py-3 text-right font-medium">{inr(pendingAmt)}</td>
+                    <td className="px-4 py-3 text-right">{inr(pendingAmt)}</td>
                     <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}>{label}</span></td>
-                    <td className="px-4 py-3 text-ink-soft dark:text-slate-300">{r.mode || "—"}</td>
                     {canManage && (
                       <td className="px-4 py-3 text-right">
                         {r.status !== "PAID" && (
@@ -222,11 +284,11 @@ export function SalaryClient({
             {rows.length > 0 && (
               <tfoot>
                 <tr className="border-t-2 border-brand-200 font-semibold dark:border-brand-500/30">
-                  <td className="px-4 py-3" colSpan={2}>Total</td>
+                  <td className="px-4 py-3" colSpan={4}>Total</td>
                   <td className="px-4 py-3 text-right text-brand-700 dark:text-brand-200">{inr(due)}</td>
                   <td className="px-4 py-3 text-right">{inr(paid)}</td>
                   <td className="px-4 py-3 text-right">{inr(pending)}</td>
-                  <td colSpan={canManage ? 3 : 2} />
+                  <td colSpan={canManage ? 2 : 1} />
                 </tr>
               </tfoot>
             )}
@@ -244,6 +306,11 @@ export function SalaryClient({
               </button>
             </div>
             {err && <p className="mb-3 rounded bg-red-50 p-2 text-sm text-red-600">{err}</p>}
+            {payFor.deductions > 0 && (
+              <p className="mb-3 rounded bg-amber-50 p-2 text-xs text-amber-700 dark:bg-amber-500/10 dark:text-amber-200">
+                Gross {inr(payFor.grossAmount)} − Advance/EMI {inr(payFor.deductions)} = Net {inr(payFor.amount)}
+              </p>
+            )}
             <div className="grid gap-3">
               <label>
                 <span className="mb-1 block text-xs text-ink-muted">Amount (₹) — pending {inr(payFor.amount - payFor.paidAmount)}</span>
@@ -259,7 +326,7 @@ export function SalaryClient({
               </label>
               <label>
                 <span className="mb-1 block text-xs text-ink-muted">Notes (optional)</span>
-                <input className={input} placeholder="e.g. Advance adjusted, half-month" value={payNotes} onChange={(e) => setPayNotes(e.target.value)} />
+                <input className={input} placeholder="e.g. Half-month, bonus adjusted" value={payNotes} onChange={(e) => setPayNotes(e.target.value)} />
               </label>
             </div>
             <div className="mt-4 flex justify-end gap-2">

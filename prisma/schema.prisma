@@ -166,6 +166,8 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  invoices  CustomerInvoice[]
+
   vehicles      Vehicle[]
   workshopJobs  WorkshopJob[]
   stockMovements StockMovement[]
@@ -711,11 +713,12 @@ model Employee {
   advisorJobs    WorkshopJob[] @relation("Advisor")
   technicianJobs WorkshopJob[] @relation("Technician")
   salaryPayments SalaryPayment[]
+  salaryDeductions SalaryDeduction[]
 }
 
 // ---------------------------------------------------------------------------
-//  SALARY — monthly employee salary tracking (fixed amount, generated per
-//  calendar month, paid via Cash / Bank / UPI, boss-view ledger)
+//  SALARY — monthly employee salary tracking (fixed amount, prorated by
+//  attendance, minus running Advance/EMI deductions), paid via Cash/Bank/UPI
 // ---------------------------------------------------------------------------
 
 model SalaryPayment {
@@ -723,7 +726,12 @@ model SalaryPayment {
   employeeId  String
   employee    Employee  @relation(fields: [employeeId], references: [id])
   month       String    // "YYYY-MM"
-  amount      Float     // due amount for this month (snapshot of employee.salary)
+  baseSalary  Float     @default(0) // employee's fixed salary, snapshot at generation
+  presentDays Int?                  // entered at month-end; null = full month assumed
+  totalDays   Int       @default(30)
+  grossAmount Float     @default(0) // baseSalary prorated by attendance
+  deductions  Float     @default(0) // this month's Advance/EMI installments
+  amount      Float     // net payable = grossAmount - deductions
   paidAmount  Float     @default(0)
   status      String    @default("PENDING") // PENDING / PARTIAL / PAID
   mode        String?   // Cash / Bank / UPI
@@ -735,6 +743,66 @@ model SalaryPayment {
   @@unique([employeeId, month])
   @@index([month])
   @@index([employeeId])
+}
+
+// Advance or EMI given to an employee, recovered in installments from salary.
+model SalaryDeduction {
+  id                String   @id @default(cuid())
+  employeeId        String
+  employee          Employee @relation(fields: [employeeId], references: [id])
+  type              String   // ADVANCE / EMI
+  totalAmount       Float
+  installmentAmount Float
+  remainingAmount   Float
+  notes             String?
+  isActive          Boolean  @default(true) // false once remainingAmount hits 0
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([employeeId])
+}
+
+// ---------------------------------------------------------------------------
+//  SALES — customer billing, separate from vendor purchase bills. Needed for
+//  Gross Profit (Sales − Cost of Goods).
+// ---------------------------------------------------------------------------
+
+model CustomerInvoice {
+  id            String    @id @default(cuid())
+  number        String    @unique
+  date          DateTime  @default(now())
+  customerId    String?
+  customer      Customer? @relation(fields: [customerId], references: [id])
+  customerName  String?   // free-text fallback if no Customer master record
+  vehicleNo     String?
+  description   String?
+  amount        Float     // total billed to customer (revenue)
+  costOfGoods   Float     @default(0) // parts/labor cost for this sale
+  paidAmount    Float     @default(0)
+  status        String    @default("UNPAID") // UNPAID / PARTIAL / PAID
+  mode          String?
+  createdByName String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([date])
+}
+
+// Vendor material received without a formal bill/invoice (cash/informal).
+model UnbilledPurchase {
+  id            String   @id @default(cuid())
+  date          DateTime
+  vendorName    String   // free text — vendor may not be in the Vendor master
+  description   String?
+  amount        Float
+  paidAmount    Float    @default(0)
+  mode          String?
+  notes         String?
+  createdByName String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([date])
 }
 
 model WorkshopJob {

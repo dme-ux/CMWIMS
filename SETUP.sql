@@ -331,6 +331,11 @@ CREATE TABLE "SalaryPayment" (
   "id" TEXT PRIMARY KEY,
   "employeeId" TEXT NOT NULL,
   "month" TEXT NOT NULL,
+  "baseSalary" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "presentDays" INTEGER,
+  "totalDays" INTEGER NOT NULL DEFAULT 30,
+  "grossAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "deductions" DOUBLE PRECISION NOT NULL DEFAULT 0,
   "amount" DOUBLE PRECISION NOT NULL,
   "paidAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
   "status" TEXT NOT NULL DEFAULT 'PENDING',
@@ -340,6 +345,51 @@ CREATE TABLE "SalaryPayment" (
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE ("employeeId", "month")
+);
+
+CREATE TABLE "SalaryDeduction" (
+  "id" TEXT PRIMARY KEY,
+  "employeeId" TEXT NOT NULL,
+  "type" TEXT NOT NULL,
+  "totalAmount" DOUBLE PRECISION NOT NULL,
+  "installmentAmount" DOUBLE PRECISION NOT NULL,
+  "remainingAmount" DOUBLE PRECISION NOT NULL,
+  "notes" TEXT,
+  "isActive" BOOLEAN NOT NULL DEFAULT true,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE "CustomerInvoice" (
+  "id" TEXT PRIMARY KEY,
+  "number" TEXT NOT NULL UNIQUE,
+  "date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "customerId" TEXT,
+  "customerName" TEXT,
+  "vehicleNo" TEXT,
+  "description" TEXT,
+  "amount" DOUBLE PRECISION NOT NULL,
+  "costOfGoods" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "paidAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "status" TEXT NOT NULL DEFAULT 'UNPAID',
+  "mode" TEXT,
+  "createdByName" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE "UnbilledPurchase" (
+  "id" TEXT PRIMARY KEY,
+  "date" TIMESTAMP(3) NOT NULL,
+  "vendorName" TEXT NOT NULL,
+  "description" TEXT,
+  "amount" DOUBLE PRECISION NOT NULL,
+  "paidAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "mode" TEXT,
+  "notes" TEXT,
+  "createdByName" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE "WorkshopJob" (
@@ -427,6 +477,8 @@ ALTER TABLE "VendorLedger" ADD CONSTRAINT "VendorLedger_vendorId_fkey" FOREIGN K
 ALTER TABLE "Expense" ADD CONSTRAINT "Expense_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "ExpenseCategory"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "Employee" ADD CONSTRAINT "Employee_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "SalaryPayment" ADD CONSTRAINT "SalaryPayment_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "SalaryDeduction" ADD CONSTRAINT "SalaryDeduction_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "CustomerInvoice" ADD CONSTRAINT "CustomerInvoice_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "WorkshopJob" ADD CONSTRAINT "WorkshopJob_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "WorkshopJob" ADD CONSTRAINT "WorkshopJob_vehicleId_fkey" FOREIGN KEY ("vehicleId") REFERENCES "Vehicle"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "WorkshopJob" ADD CONSTRAINT "WorkshopJob_advisorId_fkey" FOREIGN KEY ("advisorId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -452,6 +504,9 @@ CREATE INDEX "Expense_date_idx" ON "Expense"("date");
 CREATE INDEX "Expense_categoryId_idx" ON "Expense"("categoryId");
 CREATE INDEX "SalaryPayment_month_idx" ON "SalaryPayment"("month");
 CREATE INDEX "SalaryPayment_employeeId_idx" ON "SalaryPayment"("employeeId");
+CREATE INDEX "SalaryDeduction_employeeId_idx" ON "SalaryDeduction"("employeeId");
+CREATE INDEX "CustomerInvoice_date_idx" ON "CustomerInvoice"("date");
+CREATE INDEX "UnbilledPurchase_date_idx" ON "UnbilledPurchase"("date");
 CREATE INDEX "WorkshopJob_status_idx" ON "WorkshopJob"("status");
 CREATE INDEX "AuditLog_entity_idx" ON "AuditLog"("entity");
 CREATE INDEX "AuditLog_createdAt_idx" ON "AuditLog"("createdAt");

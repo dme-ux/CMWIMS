@@ -143,31 +143,90 @@ export const REPORTS: Record<string, ReportDef> = {
   "company-summary": {
     key: "company-summary",
     label: "Company Monthly Summary",
-    description: "Everything the company spent, month by month — expenses + vendor payments + salary, side by side.",
+    description: "Everything the company spent and earned, month by month — expenses, vendor payments, unbilled purchases, salary, and sales/profit — side by side.",
     async fetch() {
-      const [expenses, bills, salaries] = await Promise.all([
+      const [expenses, bills, unbilled, salaries, sales] = await Promise.all([
         prisma.expense.findMany({ select: { date: true, amount: true } }),
         prisma.purchaseInvoice.findMany({ select: { invoiceDate: true, paidAmount: true } }),
+        prisma.unbilledPurchase.findMany({ select: { date: true, amount: true } }),
         prisma.salaryPayment.findMany({ select: { month: true, paidAmount: true } }),
+        prisma.customerInvoice.findMany({ select: { date: true, amount: true, costOfGoods: true } }),
       ]);
       const key = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const map = new Map<string, { expenses: number; vendorPaid: number; salary: number }>();
-      const bump = (m: string, field: "expenses" | "vendorPaid" | "salary", val: number) => {
-        const row = map.get(m) ?? { expenses: 0, vendorPaid: 0, salary: 0 };
+      const map = new Map<string, { expenses: number; vendorPaid: number; unbilled: number; salary: number; sales: number; cost: number }>();
+      const bump = (m: string, field: "expenses" | "vendorPaid" | "unbilled" | "salary" | "sales" | "cost", val: number) => {
+        const row = map.get(m) ?? { expenses: 0, vendorPaid: 0, unbilled: 0, salary: 0, sales: 0, cost: 0 };
         row[field] += val;
         map.set(m, row);
       };
       for (const e of expenses) bump(key(e.date), "expenses", e.amount);
       for (const b of bills) bump(key(b.invoiceDate), "vendorPaid", b.paidAmount);
+      for (const u of unbilled) bump(key(u.date), "unbilled", u.amount);
       for (const s of salaries) bump(s.month, "salary", s.paidAmount);
+      for (const s of sales) { bump(key(s.date), "sales", s.amount); bump(key(s.date), "cost", s.costOfGoods); }
 
       const months = Array.from(map.keys()).sort().reverse();
       return {
-        columns: ["Month", "Expenses (chai-pani, electricity, etc.)", "Vendor Payments", "Salary Paid", "Total Outflow"],
+        columns: ["Month", "Expenses", "Vendor Payments", "Unbilled Purchases", "Salary Paid", "Total Outflow", "Sales", "Gross Profit"],
         rows: months.map((m) => {
           const r = map.get(m)!;
-          const total = r.expenses + r.vendorPaid + r.salary;
-          return [m, round(r.expenses), round(r.vendorPaid), round(r.salary), round(total)];
+          const total = r.expenses + r.vendorPaid + r.unbilled + r.salary;
+          const gp = r.sales - r.cost;
+          return [m, round(r.expenses), round(r.vendorPaid), round(r.unbilled), round(r.salary), round(total), round(r.sales), round(gp)];
+        }),
+      };
+    },
+  },
+
+  "all-expenses": {
+    key: "all-expenses",
+    label: "All Expenses Report",
+    description: "Every rupee that left the company — operational expenses, vendor payments, unbilled/cash purchases and salary paid — in one list.",
+    async fetch() {
+      const [expenses, bills, unbilled, salaries] = await Promise.all([
+        prisma.expense.findMany({ include: { category: true }, orderBy: { date: "desc" } }),
+        prisma.purchaseInvoice.findMany({ where: { paidAmount: { gt: 0 } }, include: { vendor: true }, orderBy: { invoiceDate: "desc" } }),
+        prisma.unbilledPurchase.findMany({ orderBy: { date: "desc" } }),
+        prisma.salaryPayment.findMany({ where: { paidAmount: { gt: 0 } }, include: { employee: true }, orderBy: { paidAt: "desc" } }),
+      ]);
+
+      type Row = { date: Date; type: string; party: string; details: string; amount: number; mode: string };
+      const all: Row[] = [
+        ...expenses.map((e) => ({ date: e.date, type: "Expense", party: e.category.name, details: e.description ?? "", amount: e.amount, mode: e.mode ?? "" })),
+        ...bills.map((b) => ({ date: b.invoiceDate, type: "Vendor Payment", party: b.vendor.name, details: b.number, amount: b.paidAmount, mode: "" })),
+        ...unbilled.map((u) => ({ date: u.date, type: "Unbilled Purchase", party: u.vendorName, details: u.description ?? "", amount: u.paidAmount || u.amount, mode: u.mode ?? "" })),
+        ...salaries.map((s) => ({ date: s.paidAt ?? new Date(), type: "Salary", party: s.employee.name, details: s.month, amount: s.paidAmount, mode: s.mode ?? "" })),
+      ].sort((a, b) => b.date.getTime() - a.date.getTime());
+
+      return {
+        columns: ["Date", "Type", "Party", "Details", "Amount", "Mode"],
+        rows: all.map((r) => [formatDate(r.date), r.type, r.party, r.details, round(r.amount), r.mode]),
+      };
+    },
+  },
+
+  "gross-profit": {
+    key: "gross-profit",
+    label: "Gross Profit Report",
+    description: "Sales revenue vs cost of goods, month by month — Gross Profit = Sales − Cost.",
+    async fetch() {
+      const sales = await prisma.customerInvoice.findMany({ select: { date: true, amount: true, costOfGoods: true } });
+      const key = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const map = new Map<string, { revenue: number; cost: number }>();
+      for (const s of sales) {
+        const row = map.get(key(s.date)) ?? { revenue: 0, cost: 0 };
+        row.revenue += s.amount;
+        row.cost += s.costOfGoods;
+        map.set(key(s.date), row);
+      }
+      const months = Array.from(map.keys()).sort().reverse();
+      return {
+        columns: ["Month", "Sales Revenue", "Cost of Goods", "Gross Profit", "Margin %"],
+        rows: months.map((m) => {
+          const r = map.get(m)!;
+          const gp = r.revenue - r.cost;
+          const margin = r.revenue > 0 ? (gp / r.revenue) * 100 : 0;
+          return [m, round(r.revenue), round(r.cost), round(gp), round(margin)];
         }),
       };
     },
