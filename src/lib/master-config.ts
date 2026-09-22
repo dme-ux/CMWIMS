@@ -42,6 +42,11 @@ export const MASTER_TYPES: Record<string, MasterType> = {
     fields: [{ key: "code", label: "Code", required: true }, { key: "name", label: "Name", required: true }, { key: "phone", label: "Phone" }, { key: "city", label: "City" }, { key: "gstin", label: "GSTIN" }],
     columns: ["code", "name", "phone", "city"],
   },
+  "expense-category": {
+    label: "Expense Categories",
+    fields: [{ key: "name", label: "Name", required: true }],
+    columns: ["name"],
+  },
 };
 
-export const MASTER_ORDER = ["brand", "category", "unit", "oem", "hsn", "warehouse", "rack", "shelf", "bin", "vendor", "customer"];
+export const MASTER_ORDER = ["brand", "category", "unit", "oem", "hsn", "warehouse", "rack", "shelf", "bin", "vendor", "customer", "expense-category"];

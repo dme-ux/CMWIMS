@@ -51,6 +51,23 @@ export async function getOutstandingSummary() {
   return { outstanding, overdue, unpaidCount: bills.length };
 }
 
+/** Vendor-wise billed / paid / pending — what the owner actually wants to see. */
+export async function getVendorDues() {
+  const bills = await prisma.purchaseInvoice.findMany({
+    select: { vendorId: true, grandTotal: true, paidAmount: true, vendor: { select: { name: true } } },
+  });
+  const map = new Map<string, { vendorId: string; name: string; billed: number; paid: number }>();
+  for (const b of bills) {
+    const row = map.get(b.vendorId) ?? { vendorId: b.vendorId, name: b.vendor.name, billed: 0, paid: 0 };
+    row.billed += b.grandTotal;
+    row.paid += b.paidAmount;
+    map.set(b.vendorId, row);
+  }
+  return Array.from(map.values())
+    .map((r) => ({ ...r, pending: r.billed - r.paid }))
+    .sort((a, b) => b.pending - a.pending);
+}
+
 export function paymentStatusMeta(status: string): [string, string] {
   const map: Record<string, [string, string]> = {
     UNPAID: ["Unpaid", "bg-red-50 text-red-700"],

@@ -86,6 +86,93 @@ export const REPORTS: Record<string, ReportDef> = {
     },
   },
 
+  "vendor-payments": {
+    key: "vendor-payments",
+    label: "Vendor Payment Report",
+    description: "Vendor-wise billed, paid and pending across all bills.",
+    async fetch() {
+      const bills = await prisma.purchaseInvoice.findMany({ include: { vendor: true } });
+      const map = new Map<string, { name: string; billed: number; paid: number }>();
+      for (const b of bills) {
+        const row = map.get(b.vendorId) ?? { name: b.vendor.name, billed: 0, paid: 0 };
+        row.billed += b.grandTotal;
+        row.paid += b.paidAmount;
+        map.set(b.vendorId, row);
+      }
+      const list = Array.from(map.values()).sort((a, b) => (b.billed - b.paid) - (a.billed - a.paid));
+      return {
+        columns: ["Vendor", "Billed", "Paid", "Pending"],
+        rows: list.map((v) => [v.name, round(v.billed), round(v.paid), round(v.billed - v.paid)]),
+      };
+    },
+  },
+
+  expenses: {
+    key: "expenses",
+    label: "Expense Report",
+    description: "All operational expenses — food, electricity, fuel, rent and more.",
+    async fetch() {
+      const rows = await prisma.expense.findMany({ include: { category: true }, orderBy: { date: "desc" }, take: 1000 });
+      return {
+        columns: ["Date", "Category", "Description", "Amount", "Paid By", "Mode", "Entered By"],
+        rows: rows.map((e) => [formatDate(e.date), e.category.name, e.description ?? "", round(e.amount), e.paidBy ?? "", e.mode ?? "", e.createdByName ?? ""]),
+      };
+    },
+  },
+
+  salary: {
+    key: "salary",
+    label: "Salary Report",
+    description: "Employee-wise monthly salary: due, paid and pending.",
+    async fetch() {
+      const rows = await prisma.salaryPayment.findMany({
+        include: { employee: true },
+        orderBy: [{ month: "desc" }, { employee: { name: "asc" } }],
+        take: 1000,
+      });
+      return {
+        columns: ["Month", "Employee", "Role", "Due", "Paid", "Pending", "Status", "Mode", "Paid On"],
+        rows: rows.map((r) => [
+          r.month, r.employee.name, r.employee.role, round(r.amount), round(r.paidAmount), round(r.amount - r.paidAmount),
+          r.status, r.mode ?? "", r.paidAt ? formatDate(r.paidAt) : "",
+        ]),
+      };
+    },
+  },
+
+  "company-summary": {
+    key: "company-summary",
+    label: "Company Monthly Summary",
+    description: "Everything the company spent, month by month — expenses + vendor payments + salary, side by side.",
+    async fetch() {
+      const [expenses, bills, salaries] = await Promise.all([
+        prisma.expense.findMany({ select: { date: true, amount: true } }),
+        prisma.purchaseInvoice.findMany({ select: { invoiceDate: true, paidAmount: true } }),
+        prisma.salaryPayment.findMany({ select: { month: true, paidAmount: true } }),
+      ]);
+      const key = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const map = new Map<string, { expenses: number; vendorPaid: number; salary: number }>();
+      const bump = (m: string, field: "expenses" | "vendorPaid" | "salary", val: number) => {
+        const row = map.get(m) ?? { expenses: 0, vendorPaid: 0, salary: 0 };
+        row[field] += val;
+        map.set(m, row);
+      };
+      for (const e of expenses) bump(key(e.date), "expenses", e.amount);
+      for (const b of bills) bump(key(b.invoiceDate), "vendorPaid", b.paidAmount);
+      for (const s of salaries) bump(s.month, "salary", s.paidAmount);
+
+      const months = Array.from(map.keys()).sort().reverse();
+      return {
+        columns: ["Month", "Expenses (chai-pani, electricity, etc.)", "Vendor Payments", "Salary Paid", "Total Outflow"],
+        rows: months.map((m) => {
+          const r = map.get(m)!;
+          const total = r.expenses + r.vendorPaid + r.salary;
+          return [m, round(r.expenses), round(r.vendorPaid), round(r.salary), round(total)];
+        }),
+      };
+    },
+  },
+
   "dead-stock": {
     key: "dead-stock",
     label: "Dead Stock Report",

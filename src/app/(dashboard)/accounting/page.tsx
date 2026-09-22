@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Plus, Wallet, AlertTriangle, FileText } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
 import { can } from "@/lib/auth/rbac";
-import { getBills, getOutstandingSummary, paymentStatusMeta } from "@/lib/accounting";
+import { getBills, getOutstandingSummary, getVendorDues, paymentStatusMeta } from "@/lib/accounting";
 import { inr, formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ export default async function AccountingPage() {
   const session = await getSession();
   if (!session || !can(session.role, "accounts.view")) redirect("/dashboard");
   const canManage = can(session.role, "accounts.manage");
-  const [bills, summary] = await Promise.all([getBills(), getOutstandingSummary()]);
+  const [bills, summary, vendorDues] = await Promise.all([getBills(), getOutstandingSummary(), getVendorDues()]);
 
   return (
     <div className="space-y-5">
@@ -33,6 +33,39 @@ export default async function AccountingPage() {
         <SummaryCard icon={<Wallet className="h-5 w-5" />} label="Total outstanding" value={inr(summary.outstanding)} tone="brand" />
         <SummaryCard icon={<FileText className="h-5 w-5" />} label="Unpaid bills" value={summary.unpaidCount} tone="amber" />
         <SummaryCard icon={<AlertTriangle className="h-5 w-5" />} label="Overdue bills" value={summary.overdue} tone="red" />
+      </div>
+
+      {/* vendor-wise ledger — "kitna vendor ko due hai, kitna pay kiya" */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-card dark:border-white/10 dark:bg-[rgb(var(--surface))]">
+        <div className="border-b border-slate-200/70 px-4 py-3 dark:border-white/10">
+          <h2 className="font-display text-sm font-semibold text-ink dark:text-slate-100">Vendor Ledger — billed, paid &amp; pending</h2>
+          <p className="text-xs text-ink-muted">Running total across every bill, per vendor.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-ink-muted dark:bg-white/5">
+              <tr>
+                <th className="px-4 py-3">Vendor</th>
+                <th className="px-4 py-3 text-right">Billed</th>
+                <th className="px-4 py-3 text-right">Paid</th>
+                <th className="px-4 py-3 text-right">Pending</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+              {vendorDues.length === 0 && (
+                <tr><td colSpan={4} className="px-4 py-10 text-center text-ink-muted">No vendor bills yet.</td></tr>
+              )}
+              {vendorDues.map((v) => (
+                <tr key={v.vendorId} className="hover:bg-brand-50/40 dark:hover:bg-white/5">
+                  <td className="px-4 py-3 font-medium text-ink dark:text-slate-100">{v.name}</td>
+                  <td className="px-4 py-3 text-right text-ink-soft dark:text-slate-300">{inr(v.billed)}</td>
+                  <td className="px-4 py-3 text-right text-emerald-600">{inr(v.paid)}</td>
+                  <td className={`px-4 py-3 text-right font-semibold ${v.pending > 0 ? "text-red-600" : "text-ink-soft"}`}>{inr(v.pending)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-card dark:border-white/10 dark:bg-[rgb(var(--surface))]">

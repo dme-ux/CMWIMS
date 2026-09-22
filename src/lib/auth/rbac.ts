@@ -25,6 +25,10 @@ export type Permission =
   | "purchase.approve"
   | "accounts.view"
   | "accounts.manage"
+  | "expenses.view"
+  | "expenses.manage"
+  | "salary.view"
+  | "salary.manage"
   | "reports.view"
   | "workshop.view"
   | "workshop.manage"
@@ -35,7 +39,8 @@ export type Permission =
 const ALL: Permission[] = [
   "dashboard.view", "masters.manage", "inventory.view", "inventory.manage",
   "purchase.view", "purchase.manage", "purchase.approve", "accounts.view",
-  "accounts.manage", "reports.view", "workshop.view", "workshop.manage",
+  "accounts.manage", "expenses.view", "expenses.manage", "salary.view", "salary.manage", "reports.view",
+  "workshop.view", "workshop.manage",
   "workshop.assigned", "settings.manage", "users.manage",
 ];
 
@@ -45,7 +50,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   MANAGER: ALL.filter((p) => p !== "settings.manage" && p !== "users.manage"),
   STORE_MANAGER: ["dashboard.view", "inventory.view", "inventory.manage", "reports.view"],
   PURCHASE: ["dashboard.view", "purchase.view", "purchase.manage", "inventory.view", "reports.view"],
-  ACCOUNTS: ["dashboard.view", "accounts.view", "accounts.manage", "purchase.view", "reports.view"],
+  ACCOUNTS: ["dashboard.view", "accounts.view", "accounts.manage", "expenses.view", "expenses.manage", "salary.view", "salary.manage", "purchase.view", "reports.view"],
   WORKSHOP: ["dashboard.view", "workshop.view", "workshop.manage", "inventory.view"],
   SERVICE_ADVISOR: ["dashboard.view", "workshop.view", "workshop.manage"],
   TECHNICIAN: ["dashboard.view", "workshop.assigned"],

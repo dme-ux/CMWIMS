@@ -10,6 +10,7 @@ function model(type: string): { delegate: any; order: any } | null {
     oem: { delegate: prisma.oEMBrand, order: { name: "asc" } }, hsn: { delegate: prisma.hSNCode, order: { code: "asc" } }, warehouse: { delegate: prisma.warehouse, order: { name: "asc" } },
     rack: { delegate: prisma.rack, order: { name: "asc" } }, shelf: { delegate: prisma.shelf, order: { name: "asc" } }, bin: { delegate: prisma.bin, order: { name: "asc" } },
     vendor: { delegate: prisma.vendor, order: { name: "asc" } }, customer: { delegate: prisma.customer, order: { name: "asc" } },
+    "expense-category": { delegate: prisma.expenseCategory, order: { name: "asc" } },
   };
   return map[type] ?? null;
 }
