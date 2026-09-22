@@ -67,7 +67,7 @@ export function ExportPdfButton({
       margin: { left: 12, right: 12 },
     });
 
-    const pageCount = doc.internal.getNumberOfPages();
+    const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFont("helvetica", "normal");
