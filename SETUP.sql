@@ -294,6 +294,25 @@ CREATE TABLE "VendorLedger" (
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE "ExpenseCategory" (
+  "id" TEXT PRIMARY KEY,
+  "name" TEXT NOT NULL UNIQUE,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE "Expense" (
+  "id" TEXT PRIMARY KEY,
+  "date" TIMESTAMP(3) NOT NULL,
+  "categoryId" TEXT NOT NULL,
+  "description" TEXT,
+  "amount" DOUBLE PRECISION NOT NULL,
+  "paidBy" TEXT,
+  "mode" TEXT,
+  "createdByName" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE "Employee" (
   "id" TEXT PRIMARY KEY,
   "code" TEXT NOT NULL UNIQUE,
@@ -388,6 +407,7 @@ ALTER TABLE "PurchaseInvoice" ADD CONSTRAINT "PurchaseInvoice_vendorId_fkey" FOR
 ALTER TABLE "Payment" ADD CONSTRAINT "Payment_vendorId_fkey" FOREIGN KEY ("vendorId") REFERENCES "Vendor"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "Payment" ADD CONSTRAINT "Payment_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "PurchaseInvoice"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "VendorLedger" ADD CONSTRAINT "VendorLedger_vendorId_fkey" FOREIGN KEY ("vendorId") REFERENCES "Vendor"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Expense" ADD CONSTRAINT "Expense_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "ExpenseCategory"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "Employee" ADD CONSTRAINT "Employee_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "WorkshopJob" ADD CONSTRAINT "WorkshopJob_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "WorkshopJob" ADD CONSTRAINT "WorkshopJob_vehicleId_fkey" FOREIGN KEY ("vehicleId") REFERENCES "Vehicle"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -410,6 +430,8 @@ CREATE INDEX "StockMovement_createdAt_idx" ON "StockMovement"("createdAt");
 CREATE INDEX "PurchaseOrder_status_idx" ON "PurchaseOrder"("status");
 CREATE INDEX "PurchaseInvoice_paymentStatus_idx" ON "PurchaseInvoice"("paymentStatus");
 CREATE INDEX "VendorLedger_vendorId_idx" ON "VendorLedger"("vendorId");
+CREATE INDEX "Expense_date_idx" ON "Expense"("date");
+CREATE INDEX "Expense_categoryId_idx" ON "Expense"("categoryId");
 CREATE INDEX "WorkshopJob_status_idx" ON "WorkshopJob"("status");
 CREATE INDEX "AuditLog_entity_idx" ON "AuditLog"("entity");
 CREATE INDEX "AuditLog_createdAt_idx" ON "AuditLog"("createdAt");
