@@ -320,9 +320,26 @@ CREATE TABLE "Employee" (
   "role" TEXT NOT NULL,
   "phone" TEXT,
   "email" TEXT,
+  "salary" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "userId" TEXT UNIQUE,
   "isActive" BOOLEAN NOT NULL DEFAULT true,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE "SalaryPayment" (
+  "id" TEXT PRIMARY KEY,
+  "employeeId" TEXT NOT NULL,
+  "month" TEXT NOT NULL,
+  "amount" DOUBLE PRECISION NOT NULL,
+  "paidAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "status" TEXT NOT NULL DEFAULT 'PENDING',
+  "mode" TEXT,
+  "paidAt" TIMESTAMP(3),
+  "notes" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE ("employeeId", "month")
 );
 
 CREATE TABLE "WorkshopJob" (
@@ -409,6 +426,7 @@ ALTER TABLE "Payment" ADD CONSTRAINT "Payment_invoiceId_fkey" FOREIGN KEY ("invo
 ALTER TABLE "VendorLedger" ADD CONSTRAINT "VendorLedger_vendorId_fkey" FOREIGN KEY ("vendorId") REFERENCES "Vendor"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "Expense" ADD CONSTRAINT "Expense_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "ExpenseCategory"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "Employee" ADD CONSTRAINT "Employee_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "SalaryPayment" ADD CONSTRAINT "SalaryPayment_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "WorkshopJob" ADD CONSTRAINT "WorkshopJob_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "WorkshopJob" ADD CONSTRAINT "WorkshopJob_vehicleId_fkey" FOREIGN KEY ("vehicleId") REFERENCES "Vehicle"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 ALTER TABLE "WorkshopJob" ADD CONSTRAINT "WorkshopJob_advisorId_fkey" FOREIGN KEY ("advisorId") REFERENCES "Employee"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -432,6 +450,8 @@ CREATE INDEX "PurchaseInvoice_paymentStatus_idx" ON "PurchaseInvoice"("paymentSt
 CREATE INDEX "VendorLedger_vendorId_idx" ON "VendorLedger"("vendorId");
 CREATE INDEX "Expense_date_idx" ON "Expense"("date");
 CREATE INDEX "Expense_categoryId_idx" ON "Expense"("categoryId");
+CREATE INDEX "SalaryPayment_month_idx" ON "SalaryPayment"("month");
+CREATE INDEX "SalaryPayment_employeeId_idx" ON "SalaryPayment"("employeeId");
 CREATE INDEX "WorkshopJob_status_idx" ON "WorkshopJob"("status");
 CREATE INDEX "AuditLog_entity_idx" ON "AuditLog"("entity");
 CREATE INDEX "AuditLog_createdAt_idx" ON "AuditLog"("createdAt");
