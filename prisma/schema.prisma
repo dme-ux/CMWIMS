@@ -662,6 +662,35 @@ model VendorLedger {
 }
 
 // ---------------------------------------------------------------------------
+//  EXPENSES (day-to-day operational spend — not tied to a vendor PO)
+// ---------------------------------------------------------------------------
+
+model ExpenseCategory {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+
+  expenses  Expense[]
+}
+
+model Expense {
+  id            String          @id @default(cuid())
+  date          DateTime
+  categoryId    String
+  category      ExpenseCategory @relation(fields: [categoryId], references: [id])
+  description   String?
+  amount        Float
+  paidBy        String?
+  mode          String?         // Cash / UPI / Bank Transfer / Card
+  createdByName String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([date])
+  @@index([categoryId])
+}
+
+// ---------------------------------------------------------------------------
 //  WORKSHOP (architecture ready for job cards)
 // ---------------------------------------------------------------------------
 
@@ -672,6 +701,8 @@ model Employee {
   role       String   // Advisor / Technician / etc.
   phone      String?
   email      String?
+  salary     Float    @default(0) // fixed monthly salary
+  joinedAt   DateTime @default(now())
   userId     String?  @unique
   user       User?    @relation(fields: [userId], references: [id])
   isActive   Boolean  @default(true)
@@ -679,6 +710,31 @@ model Employee {
 
   advisorJobs    WorkshopJob[] @relation("Advisor")
   technicianJobs WorkshopJob[] @relation("Technician")
+  salaryPayments SalaryPayment[]
+}
+
+// ---------------------------------------------------------------------------
+//  SALARY — monthly employee salary tracking (fixed amount, generated per
+//  calendar month, paid via Cash / Bank / UPI, boss-view ledger)
+// ---------------------------------------------------------------------------
+
+model SalaryPayment {
+  id          String    @id @default(cuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  month       String    // "YYYY-MM"
+  amount      Float     // due amount for this month (snapshot of employee.salary)
+  paidAmount  Float     @default(0)
+  status      String    @default("PENDING") // PENDING / PARTIAL / PAID
+  mode        String?   // Cash / Bank / UPI
+  paidAt      DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([employeeId, month])
+  @@index([month])
+  @@index([employeeId])
 }
 
 model WorkshopJob {
