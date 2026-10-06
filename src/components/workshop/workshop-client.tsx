@@ -7,6 +7,7 @@ import {WORKSHOP_STATUSES,jobStatusMeta} from "@/lib/workshop";
 import {SignaturePad,type SignaturePadHandle} from "@/components/workshop/signature-pad";
 import {JobCardPrint,type PrintJob} from "@/components/workshop/jobcard-print";
 import {RECEIVING_CHECKLIST,emptyChecklist,type ChecklistMap} from "@/lib/qc-checklists";
+import {generateOriginalJobCardPdf} from "@/lib/jobcard-pdf";
 
 type Job=PrintJob&{id:string;createdAt:string;customerId:string|null;vehicleId:string|null;emailStatus:string|null;inTime?:string|null;address?:string|null;approvalStatus:string;approvalRequestedAt?:string|null;approvalRequestedBy?:string|null;approvedAt?:string|null;approvedBy?:string|null;approvalRemarks?:string|null;approvalSource?:string|null;approvalCustomerPhone?:string|null};
 type StockItem={id:string;sku:string;name:string;partNumber:string|null;oemNumber:string|null;currentStock:number;locations:{id:string;quantity:number;reservedQty:number;label:string}[]};
@@ -51,28 +52,30 @@ export function WorkshopClient({jobs,stockItems,canCreate,canEdit,canStatus,canP
   const d=await res.json();if(!res.ok){alert(d.error||'Approval update failed');return false}r.refresh();return true
  }
  async function shareApproval(j:Job){
-  const phone=String(j.contactNo||'').replace(/\D/g,'');
+  let phone=String(j.contactNo||'').replace(/\D/g,'');
   if(!phone){alert('Customer mobile number is missing on this Job Card. Please update the customer/job card first.');return}
-  const text=`Dear ${j.customerName||'Customer'},\n\nPlease review your original Job Card ${j.jobNumber} for vehicle ${j.vehicleNo||''}. The PDF is attached.\n\nKindly reply APPROVED if all details are correct, or reply with the required correction.\n\nRegards,\n${company.name||'Capital Motor Works'}`;
+  // Indian 10-digit mobile numbers need country code for wa.me.
+  if(phone.length===10)phone='91'+phone;
+  const text=`Dear ${j.customerName||'Customer'},\n\nPlease review Job Card ${j.jobNumber} for vehicle ${j.vehicleNo||''}.\n\nKindly reply APPROVED if all details are correct, or reply with the required correction.\n\nRegards,\n${company.name||'Capital Motor Works'}`;
   try{
-   const{jsPDF}=await import('jspdf');const doc=new jsPDF();
-   const put=(label:string,value:any,y:number)=>{doc.setFont('helvetica','bold');doc.text(label,14,y);doc.setFont('helvetica','normal');const lines=doc.splitTextToSize(String(value||'-'),142);doc.text(lines,54,y);return y+Math.max(8,lines.length*5)};
-   doc.setFontSize(16);doc.setFont('helvetica','bold');doc.text(company.name||'CAPITAL MOTOR WORKS',14,16);
-   doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text([company.address,company.phone,company.email,company.gstin?`GSTIN: ${company.gstin}`:''].filter(Boolean).join(' · '),14,22,{maxWidth:180});
-   doc.setFontSize(13);doc.setFont('helvetica','bold');doc.text('JOB CARD',14,31);doc.setFontSize(9);let y=41;
-   y=put('Job Card',j.jobNumber,y);y=put('Date / Time',new Date(j.receivedAt).toLocaleString('en-IN'),y);y=put('Customer',j.customerName,y);y=put('Mobile',j.contactNo,y);y=put('Vehicle',`${j.vehicleNo||'-'} · ${j.carBrand||''} ${j.model||''} ${j.variant||''}`,y);y=put('Chassis',j.chassisNumber,y);y=put('Engine',j.engineNumber,y);y=put('Odometer',j.odometer?`${j.odometer} KM`:'-',y);y=put('Service',j.serviceType,y);y=put('Complaint / Work Required',j.complaint,y);y=put('Additional Request',j.additionalRequests,y);y=put('Fuel',`${j.fuelType||'-'} · ${j.fuelReading||'-'}`,y);y=put('Remarks',j.remarks,y);
-   if(y>235){doc.addPage();y=18}doc.setFont('helvetica','bold');doc.text('Vehicle Condition / Working Check',14,y+2);doc.setFont('helvetica','normal');y+=9;
-   for(const sec of RECEIVING_CHECKLIST){for(const it of sec.items){const v=(j.receivingChecklist||{})[it.key];if(v?.status&&v.status!=='NOT_CHECKED'){const line=`${it.label}: ${v.status}${v.comment?` - ${v.comment}`:''}`;for(const t of doc.splitTextToSize(line,178)){if(y>275){doc.addPage();y=18}doc.text(t,14,y);y+=5}}}}
-   if(j.parts?.length){if(y>245){doc.addPage();y=18}doc.setFont('helvetica','bold');doc.text('Parts Issued',14,y);doc.setFont('helvetica','normal');y+=7;for(const p of j.parts){const q=p.quantity-p.returnedQty;if(q<=0)continue;for(const t of doc.splitTextToSize(`${p.item.partNumber||p.item.sku} · ${p.item.name} · Qty ${q}`,178)){if(y>275){doc.addPage();y=18}doc.text(t,14,y);y+=5}}}
-   doc.addPage();doc.setFontSize(13);doc.setFont('helvetica','bold');doc.text('TERMS & CONDITIONS',14,18);doc.setFontSize(9);doc.setFont('helvetica','normal');
-   const risk='Pickup and delivery of the vehicle, when arranged at the customer request, shall be at the customer risk. Capital Motor Works shall not be responsible for loss, damage, accident, theft or delay during pickup or delivery, except to the extent required by applicable law.';
-   const terms=String(documents?.jobCardTerms||'').split(/\n+/).map((x:string)=>x.trim()).filter(Boolean);if(!terms.some((t:string)=>/pickup|delivery.*risk/i.test(t)))terms.push(risk);y=28;terms.forEach((t:string,i:number)=>{const ls=doc.splitTextToSize(`${i+1}. ${t.replace(/^\s*\d+[.)]\s*/,'')}`,178);if(y+ls.length*5>280){doc.addPage();y=18}doc.text(ls,14,y);y+=ls.length*5+3});
-   const blob=doc.output('blob');const file=new File([blob],`${j.jobNumber}.pdf`,{type:'application/pdf'});const nav:any=navigator;
-   if(nav.share&&(!nav.canShare||nav.canShare({files:[file]}))){await nav.share({title:`Job Card ${j.jobNumber}`,text,files:[file]})}
-   else{doc.save(`${j.jobNumber}.pdf`);window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`,'_blank')}
+   // IMPORTANT: generate the same branded/original Job Card design shown in Job Card Preview.
+   // Do not create a simplified approval PDF.
+   const {doc,file,filename}=await generateOriginalJobCardPdf(j,company,documents);
+   const nav:any=navigator;
+   let sharedWithFile=false;
+   if(nav.share&&(!nav.canShare||nav.canShare({files:[file]}))){
+    try{await nav.share({title:`Job Card ${j.jobNumber}`,text,files:[file]});sharedWithFile=true}catch(e:any){if(e?.name==='AbortError')return}
+   }
+   if(!sharedWithFile){
+    // Browsers do not allow wa.me / WhatsApp Web links to pre-attach a local file.
+    // Download the exact original Job Card PDF and open the customer's WhatsApp chat.
+    doc.save(filename);
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text+'\n\nThe original Job Card PDF has been downloaded. Please attach '+filename+' to this chat.')}`,'_blank');
+   }
    await approval(j,'REQUEST')
-  }catch(e){console.error(e);window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`,'_blank');await approval(j,'REQUEST')}
+  }catch(e){console.error(e);alert('Original Job Card PDF could not be prepared. Please try again.');}
  }
+
  return <div className="space-y-5">
   <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="font-display text-2xl font-bold">Job Cards</h1><p className="text-sm text-ink-muted">Vehicle receiving, service tracking, parts issue/return and complete job history.</p></div>{canCreate&&<Button onClick={()=>formOpen?(setFormOpen(false),resetForm()):startNew()}><Wrench className="h-4 w-4"/>{formOpen?'Close Form':'New Job Card'}</Button>}</div>
   {formOpen&&<div className="space-y-4 rounded-2xl border border-brand-100 bg-brand-50/20 p-3"><div className="flex items-center justify-between"><div><b>{editingJob?`Edit ${editingJob.jobNumber}`:'Create New Job Card'}</b>{editingJob&&<div className="text-xs text-ink-muted">Job number remains unchanged. All edits are logged.</div>}</div>{editingJob&&<button onClick={()=>{resetForm();setFormOpen(false)}} className="rounded-lg p-2 hover:bg-white"><X className="h-4 w-4"/></button>}</div>
