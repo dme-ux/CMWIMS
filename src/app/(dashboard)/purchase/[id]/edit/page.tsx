@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { getPOFormData, getPurchaseOrderById } from "@/lib/purchase";
 import { POForm } from "@/components/purchase/po-form";
 
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function EditPOPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();
-  if (!session || !can(session.role, "purchase.manage")) redirect("/purchase");
+  if (!session || !canSession(session, "purchase.manage")) redirect("/purchase");
   const [po, data] = await Promise.all([getPurchaseOrderById(id), getPOFormData()]);
   if (!po) notFound();
   if (["RECEIVED", "CANCELLED"].includes(po.status)) redirect(`/purchase/${po.id}`);

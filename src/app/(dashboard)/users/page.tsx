@@ -2,14 +2,14 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { UserManager } from "@/components/users/user-manager";
 
 export const dynamic = "force-dynamic";
 
 export default async function UsersPage() {
   const session = await getSession();
-  if (!session || !can(session.role, "users.manage")) redirect("/dashboard");
+  if (!session || !canSession(session, "users.manage")) redirect("/dashboard");
 
   return (
     <div className="space-y-5">

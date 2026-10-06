@@ -1,99 +1,14 @@
-// ============================================================================
-//  Expense data helpers — day-to-day operational spend (food, electricity,
-//  fuel, rent, tools etc.) — separate from vendor purchase bills.
-// ============================================================================
 import { prisma } from "@/lib/prisma";
-
-export type ExpenseFilters = {
-  q?: string;
-  categoryId?: string;
-  from?: string; // yyyy-mm-dd
-  to?: string;   // yyyy-mm-dd
-};
-
-function dateRange(from?: string, to?: string) {
-  const where: any = {};
-  if (from) where.gte = new Date(from + "T00:00:00");
-  if (to) where.lte = new Date(to + "T23:59:59");
-  return Object.keys(where).length ? where : undefined;
-}
-
-export async function listExpenses(filters: ExpenseFilters = {}) {
-  const where: any = {};
-  if (filters.categoryId) where.categoryId = filters.categoryId;
-  const range = dateRange(filters.from, filters.to);
-  if (range) where.date = range;
-  if (filters.q) {
-    where.OR = [
-      { description: { contains: filters.q, mode: "insensitive" } },
-      { paidBy: { contains: filters.q, mode: "insensitive" } },
-    ];
-  }
-  return prisma.expense.findMany({
-    where,
-    include: { category: true },
-    orderBy: { date: "desc" },
-    take: 500,
-  });
-}
-
-export async function getExpenseCategories() {
-  return prisma.expenseCategory.findMany({ orderBy: { name: "asc" } });
-}
-
-export async function getExpenseSummary() {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-  const [todayAgg, monthAgg, monthRows] = await Promise.all([
-    prisma.expense.aggregate({ _sum: { amount: true }, where: { date: { gte: today } } }),
-    prisma.expense.aggregate({ _sum: { amount: true }, where: { date: { gte: monthStart } } }),
-    prisma.expense.findMany({
-      where: { date: { gte: monthStart } },
-      include: { category: true },
-    }),
-  ]);
-
-  const byCategory = new Map<string, number>();
-  for (const e of monthRows) {
-    const key = e.category.name;
-    byCategory.set(key, (byCategory.get(key) || 0) + e.amount);
-  }
-
-  // last 8 weeks trend
-  const weekBuckets: { label: string; start: Date; end: Date; total: number }[] = [];
-  for (let i = 7; i >= 0; i--) {
-    const d = new Date(today);
-    const day = d.getDay();
-    const diffToMonday = day === 0 ? 6 : day - 1;
-    d.setDate(d.getDate() - diffToMonday - i * 7);
-    const end = new Date(d);
-    end.setDate(end.getDate() + 6);
-    weekBuckets.push({
-      label: d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
-      start: d,
-      end,
-      total: 0,
-    });
-  }
-  const trendRows = await prisma.expense.findMany({
-    where: { date: { gte: weekBuckets[0].start } },
-    select: { date: true, amount: true },
-  });
-  for (const r of trendRows) {
-    for (const w of weekBuckets) {
-      if (r.date >= w.start && r.date <= w.end) {
-        w.total += r.amount;
-        break;
-      }
-    }
-  }
-
-  return {
-    today: todayAgg._sum.amount || 0,
-    month: monthAgg._sum.amount || 0,
-    byCategory: Array.from(byCategory.entries()).map(([name, total]) => ({ name, total })),
-    trend: weekBuckets.map((w) => ({ label: w.label, total: w.total })),
-  };
+export type ExpenseFilters={q?:string;categoryId?:string;from?:string;to?:string};
+function dateRange(from?:string,to?:string){const w:any={};if(from)w.gte=new Date(from+"T00:00:00");if(to)w.lte=new Date(to+"T23:59:59");return Object.keys(w).length?w:undefined}
+export async function listExpenses(filters:ExpenseFilters={}){const where:any={};if(filters.categoryId)where.categoryId=filters.categoryId;const range=dateRange(filters.from,filters.to);if(range)where.date=range;if(filters.q)where.OR=[{description:{contains:filters.q,mode:"insensitive"}},{paidBy:{contains:filters.q,mode:"insensitive"}},{mode:{contains:filters.q,mode:"insensitive"}}];return prisma.expense.findMany({where,include:{category:true},orderBy:[{date:"desc"},{createdAt:"desc"}],take:1000})}
+export async function getExpenseCategories(){return prisma.expenseCategory.findMany({orderBy:{name:"asc"}})}
+export async function getExpenseSummary(){const now=new Date();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());const monthStart=new Date(now.getFullYear(),now.getMonth(),1);const lastMonthStart=new Date(now.getFullYear(),now.getMonth()-1,1);const fyStart=new Date(now.getMonth()>=3?now.getFullYear():now.getFullYear()-1,3,1);
+ const [todayAgg,monthAgg,lastMonthAgg,fyAgg,allAgg,monthRows,fyRows]=await Promise.all([
+ prisma.expense.aggregate({_sum:{amount:true},where:{date:{gte:today}}}),prisma.expense.aggregate({_sum:{amount:true},where:{date:{gte:monthStart}}}),prisma.expense.aggregate({_sum:{amount:true},where:{date:{gte:lastMonthStart,lt:monthStart}}}),prisma.expense.aggregate({_sum:{amount:true},where:{date:{gte:fyStart}}}),prisma.expense.aggregate({_sum:{amount:true}}),prisma.expense.findMany({where:{date:{gte:monthStart}},include:{category:true}}),prisma.expense.findMany({where:{date:{gte:fyStart}},select:{date:true,amount:true,mode:true,paidBy:true}})]);
+ const byCategory=new Map<string,number>();for(const e of monthRows)byCategory.set(e.category.name,(byCategory.get(e.category.name)||0)+e.amount);
+ const byMode=new Map<string,number>();const byPaidBy=new Map<string,number>();for(const e of fyRows){const m=e.mode||"Unspecified";byMode.set(m,(byMode.get(m)||0)+e.amount);const p=e.paidBy||"Unspecified";byPaidBy.set(p,(byPaidBy.get(p)||0)+e.amount)}
+ const weekBuckets:{label:string;start:Date;end:Date;total:number}[]=[];for(let i=7;i>=0;i--){const d=new Date(today);const day=d.getDay(),diff=day===0?6:day-1;d.setDate(d.getDate()-diff-i*7);const end=new Date(d);end.setDate(end.getDate()+6);end.setHours(23,59,59,999);weekBuckets.push({label:d.toLocaleDateString("en-IN",{day:"2-digit",month:"short"}),start:d,end,total:0})}
+ const trendRows=await prisma.expense.findMany({where:{date:{gte:weekBuckets[0].start}},select:{date:true,amount:true}});for(const r of trendRows)for(const w of weekBuckets)if(r.date>=w.start&&r.date<=w.end){w.total+=r.amount;break}
+ return {today:todayAgg._sum.amount||0,month:monthAgg._sum.amount||0,lastMonth:lastMonthAgg._sum.amount||0,financialYear:fyAgg._sum.amount||0,allTime:allAgg._sum.amount||0,byCategory:Array.from(byCategory,([name,total])=>({name,total})),byMode:Array.from(byMode,([name,total])=>({name,total})),byPaidBy:Array.from(byPaidBy,([name,total])=>({name,total})),trend:weekBuckets.map(w=>({label:w.label,total:w.total}))};
 }

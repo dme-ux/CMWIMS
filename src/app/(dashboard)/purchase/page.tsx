@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Plus, ShoppingCart } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { getPurchaseOrders, poStatusMeta } from "@/lib/purchase";
 import { inr, formatDate } from "@/lib/utils";
 
@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 
 export default async function PurchasePage() {
   const session = await getSession();
-  if (!session || !can(session.role, "purchase.view")) redirect("/dashboard");
-  const canManage = can(session.role, "purchase.manage");
+  if (!session || !canSession(session, "purchase.view")) redirect("/dashboard");
+  const canManage = canSession(session, "purchase.manage");
   const orders = await getPurchaseOrders();
 
   return (

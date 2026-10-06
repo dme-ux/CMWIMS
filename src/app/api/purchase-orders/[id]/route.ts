@@ -4,14 +4,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 
 const num = (v: unknown) => (v === "" || v == null ? 0 : Number(v) || 0);
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();
-  if (!session || !can(session.role, "purchase.manage")) return forbidden();
+  if (!session || !canSession(session, "purchase.manage")) return forbidden();
 
   const existing = await prisma.purchaseOrder.findUnique({ where: { id }, include: { items: true } });
   if (!existing) return NextResponse.json({ error: "Purchase order not found." }, { status: 404 });
@@ -87,23 +87,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const data: any = {};
   switch (action) {
     case "submit":
-      if (!can(session.role, "purchase.manage")) return forbidden();
+      if (!canSession(session, "purchase.manage")) return forbidden();
       if (existing.status !== "DRAFT") return bad("Only draft orders can be submitted.");
       data.status = "PENDING_APPROVAL"; break;
     case "approve":
-      if (!can(session.role, "purchase.approve")) return forbidden();
+      if (!canSession(session, "purchase.approve")) return forbidden();
       if (!["DRAFT", "PENDING_APPROVAL"].includes(existing.status)) return bad("This order can't be approved.");
       data.status = "APPROVED"; data.approvedById = session.id; data.approvedAt = new Date(); break;
     case "reject":
-      if (!can(session.role, "purchase.approve")) return forbidden();
+      if (!canSession(session, "purchase.approve")) return forbidden();
       if (!["DRAFT", "PENDING_APPROVAL"].includes(existing.status)) return bad("Only draft or pending orders can be rejected.");
       data.status = "CANCELLED"; break;
     case "send":
-      if (!can(session.role, "purchase.manage")) return forbidden();
+      if (!canSession(session, "purchase.manage")) return forbidden();
       if (existing.status !== "APPROVED") return bad("Approve the order before sending.");
       data.status = "SENT"; break;
     case "cancel":
-      if (!can(session.role, "purchase.manage")) return forbidden();
+      if (!canSession(session, "purchase.manage")) return forbidden();
       if (["RECEIVED", "CANCELLED", "PARTIALLY_RECEIVED"].includes(existing.status)) return bad("A received/partially received order can't be cancelled directly.");
       data.status = "CANCELLED"; break;
     default: return bad("Unknown action.");

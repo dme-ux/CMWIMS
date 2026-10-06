@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { getReceivablePOById, RECEIVABLE_STATUSES } from "@/lib/inward";
 import { getLocationMasters } from "@/lib/stock";
 import { ReceiveForm } from "@/components/inward/receive-form";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function ReceivePOPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();
-  if (!session || !can(session.role, "purchase.manage")) redirect("/dashboard");
+  if (!session || !canSession(session, "purchase.manage")) redirect("/dashboard");
 
   const [po, masters] = await Promise.all([getReceivablePOById(id), getLocationMasters()]);
   if (!po) notFound();

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Search, MapPin, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { getIssuableItems } from "@/lib/outward";
 import { getLedgerMasters, getStockMovements, locationText, movementLabel } from "@/lib/stock-ledger";
 import { StockAdjustmentForm } from "@/components/inventory/stock-adjustment-form";
@@ -15,7 +15,7 @@ function dt(v: Date) {
 
 export default async function StockLedgerPage({ searchParams }: { searchParams: Promise<{ q?: string; itemId?: string; warehouseId?: string; direction?: string; from?: string; to?: string }> }) {
   const session = await getSession();
-  if (!session || !can(session.role, "inventory.view")) redirect("/dashboard");
+  if (!session || !canSession(session, "inventory.view")) redirect("/dashboard");
   const sp = await searchParams;
   const direction = sp.direction === "IN" || sp.direction === "OUT" ? sp.direction : "ALL";
   const [movements, masters, adjustmentItems] = await Promise.all([
@@ -23,7 +23,7 @@ export default async function StockLedgerPage({ searchParams }: { searchParams: 
     getLedgerMasters(),
     getIssuableItems(),
   ]);
-  const canManage = can(session.role, "inventory.manage");
+  const canManage = canSession(session, "inventory.manage");
 
   return (
     <div className="space-y-5">

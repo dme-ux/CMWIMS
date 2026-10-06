@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { Plus, Pencil, PackageSearch, MapPin, Car, Layers3, History } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { getItems, stockStatus } from "@/lib/items";
 import { inr } from "@/lib/utils";
 import { SearchBar, DeleteItemButton } from "@/components/inventory/controls";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function InventoryPage({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
   const sp = await searchParams;
   const session = await getSession();
-  const canManage = session ? can(session.role, "inventory.manage") : false;
+  const canManage = session ? canSession(session, "inventory.manage") : false;
   const items = await getItems({ q: sp.q, status: sp.status });
 
   return <div className="space-y-5">

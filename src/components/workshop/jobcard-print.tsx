@@ -10,7 +10,7 @@ export type PrintJob = {
   estimate?:number|null; receivingChecklist?:any; fuelType:string|null; fuelReading:string|null; headRest:string|null; perfume:string|null;
   speaker:string|null; jackSet:string|null; toolKit:string|null; spareWheel:string|null; floorMats:string|null; rcBook:string|null;
   insuranceStatus:string|null; insuranceCompany:string|null; insuranceExpiry:string|null; remarks:string|null; custSignature:string|null;
-  advisorSignature:string|null; parts:{id:string;quantity:number;returnedQty:number;rate:number;locationLabel:string|null;item:{sku:string;name:string;partNumber:string|null}}[]
+  advisorSignature:string|null; approvalStatus?:string; approvedAt?:string|null; approvedBy?:string|null; approvalRemarks?:string|null; parts:{id:string;quantity:number;returnedQty:number;rate:number;locationLabel:string|null;item:{sku:string;name:string;partNumber:string|null}}[]
 };
 
 function displayStatus(v?: string) {
@@ -21,9 +21,11 @@ function displayStatus(v?: string) {
   return m[v || ""] || v || "—";
 }
 
-export function JobCardPrint({job:j,company:c,documents:d,onClose}:{job:PrintJob;company:any;documents:any;onClose:()=>void}) {
-  const terms = String(d?.jobCardTerms || "")
+export function JobCardPrint({job:j,company:c,documents:d,canPrint,onClose}:{job:PrintJob;company:any;documents:any;canPrint:boolean;onClose:()=>void}) {
+  const fallbackTerms = "Pickup and delivery of the vehicle, when arranged at the customer request, shall be at the customer risk. Capital Motor Works shall not be responsible for loss, damage, accident, theft or delay during pickup or delivery, except to the extent required by applicable law.";
+  const terms = String(d?.jobCardTerms || fallbackTerms)
     .split(/\n+/).map((x:string)=>x.replace(/^\s*\d+[.)]\s*/, "").trim()).filter(Boolean);
+  if (!terms.some((t:string)=>/pickup|delivery.*risk/i.test(t))) terms.push(fallbackTerms);
   const checks = j.receivingChecklist || {};
   const received = new Date(j.receivedAt);
 
@@ -32,7 +34,7 @@ export function JobCardPrint({job:j,company:c,documents:d,onClose}:{job:PrintJob
       <div className="flex justify-between p-3 print:hidden">
         <b>Job Card Preview</b>
         <div className="flex gap-2">
-          <button onClick={()=>window.print()} className="rounded bg-brand-600 px-3 py-1.5 text-xs font-bold text-white"><Printer className="mr-1 inline h-4 w-4"/>Print / Save PDF</button>
+          {canPrint?<button onClick={()=>window.print()} className="rounded bg-brand-600 px-3 py-1.5 text-xs font-bold text-white"><Printer className="mr-1 inline h-4 w-4"/>Print / Save PDF</button>:<span className="rounded bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700">Approval required before Print / PDF</span>}
           <button onClick={onClose}><X/></button>
         </div>
       </div>
@@ -91,7 +93,7 @@ export function JobCardPrint({job:j,company:c,documents:d,onClose}:{job:PrintJob
             <div>{j.custSignature&&<img src={j.custSignature} alt="Customer signature"/>}<div className="sig-line">Customer Signature</div></div>
             <div>{j.advisorSignature&&<img src={j.advisorSignature} alt="Advisor signature"/>}<div className="sig-line right">Advisor / Executive Signature</div></div>
           </div>
-          <div className="footer-note">Vehicle received subject to the Terms & Conditions printed on Page 2.</div>
+          <div className="footer-note">Vehicle received subject to the Terms & Conditions printed on Page 2.</div>{j.approvalStatus==='APPROVED'&&<div className="mt-2 text-center text-[8px] font-bold text-emerald-700">APPROVED BY {j.approvedBy||'Authorised Approver'} {j.approvedAt?`· ${new Date(j.approvedAt).toLocaleString('en-IN')}`:''}</div>}
         </section>
 
         <section className="job-page terms-page">

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { listExpenses } from "@/lib/expenses";
 
@@ -8,7 +8,7 @@ const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null
 
 export async function GET(req: NextRequest) {
   const s = await getSession();
-  if (!s || !can(s.role, "expenses.view")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!s || !canSession(s, "expenses.view")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const sp = req.nextUrl.searchParams;
   const rows = await listExpenses({
     q: sp.get("q") || undefined,
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const s = await getSession();
-  if (!s || !can(s.role, "expenses.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
+  if (!s || !canSession(s, "expenses.create")) return NextResponse.json({ error: "No permission" }, { status: 403 });
   try {
     const b = await req.json();
     if (!b.date) return NextResponse.json({ error: "Date is required." }, { status: 400 });

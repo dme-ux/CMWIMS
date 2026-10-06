@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { generateMonthlySalaries, currentMonth } from "@/lib/salary";
 
 export async function POST(req: NextRequest) {
   const s = await getSession();
-  if (!s || !can(s.role, "salary.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
+  if (!s || !canSession(s, "salary.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
   try {
     const b = await req.json().catch(() => ({}));
     const month = b.month || currentMonth();

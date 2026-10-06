@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/utils";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AuditPage() {
   const session = await getSession();
-  if (!session || !can(session.role, "settings.manage")) redirect("/dashboard");
+  if (!session || !canSession(session, "settings.manage")) redirect("/dashboard");
 
   const logs = await prisma.auditLog.findMany({ include: { user: true }, orderBy: { createdAt: "desc" }, take: 300 });
 

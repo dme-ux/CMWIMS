@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { listSales, createSale } from "@/lib/sales";
 
 export async function GET(req: NextRequest) {
   const s = await getSession();
-  if (!s || !can(s.role, "sales.view")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!s || !canSession(s, "sales.view")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const sp = req.nextUrl.searchParams;
   const sales = await listSales({
     q: sp.get("q") || undefined,
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const s = await getSession();
-  if (!s || !can(s.role, "sales.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
+  if (!s || !canSession(s, "sales.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
   try {
     const b = await req.json();
     if (!b.date) return NextResponse.json({ error: "Date is required." }, { status: 400 });

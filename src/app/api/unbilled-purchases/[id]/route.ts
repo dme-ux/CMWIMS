@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { updateUnbilled, deleteUnbilled } from "@/lib/unbilled";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const s = await getSession();
-  if (!s || !can(s.role, "purchase.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
+  if (!s || !canSession(s, "purchase.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
   try {
     const b = await req.json();
     const amount = b.amount !== undefined ? Number(b.amount) : undefined;
@@ -33,7 +33,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const s = await getSession();
-  if (!s || !can(s.role, "purchase.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
+  if (!s || !canSession(s, "purchase.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
   try {
     await deleteUnbilled(id);
     await prisma.auditLog.create({ data: { userId: s.id, action: "DELETE", entity: "UnbilledPurchase", entityId: id, detail: "" } });

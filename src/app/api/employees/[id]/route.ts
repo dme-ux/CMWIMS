@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { updateEmployee, deleteEmployee } from "@/lib/salary";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const s = await getSession();
-  if (!s || !can(s.role, "salary.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
+  if (!s || !canSession(s, "salary.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
   try {
     const b = await req.json();
     const salary = b.salary !== undefined ? Number(b.salary) : undefined;
@@ -34,7 +34,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const s = await getSession();
-  if (!s || !can(s.role, "salary.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
+  if (!s || !canSession(s, "salary.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
   try {
     // Employees with past salary history are deactivated instead of deleted, so
     // the salary ledger for past months stays intact.

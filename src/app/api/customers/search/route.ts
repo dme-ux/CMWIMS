@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
   const s = await getSession();
-  if (!s || !can(s.role, "workshop.view")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!s || !canSession(s, "workshop.view")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const q = (req.nextUrl.searchParams.get("q") || "").trim();
   if (q.length < 2) return NextResponse.json({ results: [] });
   const customers = await prisma.customer.findMany({

@@ -1,15 +1,15 @@
 import { NextRequest,NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { WORKSHOP_STATUSES } from "@/lib/workshop";
 const str=(v:unknown)=>typeof v==='string'&&v.trim()?v.trim():null;
 const num=(v:unknown)=>v===''||v==null?null:Number(v)||null;
 function dt(date:any,time:any){if(!date)return undefined;const t=typeof time==='string'&&time?time:'00:00';const d=new Date(`${date}T${t}:00+05:30`);return isNaN(d.getTime())?undefined:d}
 
 export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}>}){
- const{id}=await params;const s=await getSession();if(!s||!can(s.role,'workshop.manage'))return NextResponse.json({error:'No permission'},{status:403});
- const b=await req.json();const old=await prisma.workshopJob.findUnique({where:{id},include:{customer:true,vehicle:true}});if(!old)return NextResponse.json({error:'Job card not found.'},{status:404});
+ const{id}=await params;const s=await getSession();if(!s)return NextResponse.json({error:'No permission'},{status:403});
+ const b=await req.json();if(b.mode==='EDIT'&&!canSession(s,'workshop.edit'))return NextResponse.json({error:'No permission to edit job cards.'},{status:403});if(b.mode!=='EDIT'&&!canSession(s,'workshop.status'))return NextResponse.json({error:'No permission to update job status.'},{status:403});const old=await prisma.workshopJob.findUnique({where:{id},include:{customer:true,vehicle:true}});if(!old)return NextResponse.json({error:'Job card not found.'},{status:404});
  const data:any={};
  if(b.status){if(!(WORKSHOP_STATUSES as readonly string[]).includes(b.status))return NextResponse.json({error:'Invalid status.'},{status:400});data.status=b.status;}
  if(b.remark?.trim()){const stamp=new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'});data.remarks=[old.remarks,`${stamp}: ${b.remark.trim()}`].filter(Boolean).join(' | ')}

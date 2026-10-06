@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Plus, Wallet, AlertTriangle, FileText } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { getBills, getOutstandingSummary, getVendorDues, paymentStatusMeta } from "@/lib/accounting";
 import { inr, formatDate } from "@/lib/utils";
 
@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 
 export default async function AccountingPage() {
   const session = await getSession();
-  if (!session || !can(session.role, "accounts.view")) redirect("/dashboard");
-  const canManage = can(session.role, "accounts.manage");
+  if (!session || !canSession(session, "accounts.view")) redirect("/dashboard");
+  const canManage = canSession(session, "accounts.manage");
   const [bills, summary, vendorDues] = await Promise.all([getBills(), getOutstandingSummary(), getVendorDues()]);
 
   return (

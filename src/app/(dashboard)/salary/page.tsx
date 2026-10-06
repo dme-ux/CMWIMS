@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { listEmployees, listSalaryPayments, currentMonth } from "@/lib/salary";
 import { SalaryClient } from "@/components/salary/salary-client";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SalaryPage() {
   const session = await getSession();
-  if (!session || !can(session.role, "salary.view")) redirect("/dashboard");
+  if (!session || !canSession(session, "salary.view")) redirect("/dashboard");
 
   const month = currentMonth();
   const [employees, payments] = await Promise.all([
@@ -26,7 +26,7 @@ export default async function SalaryPage() {
         createdAt: p.createdAt.toISOString(),
         employee: { id: p.employee.id, name: p.employee.name, role: p.employee.role, code: p.employee.code },
       }))}
-      canManage={can(session.role, "salary.manage")}
+      canManage={canSession(session, "salary.manage")}
     />
   );
 }

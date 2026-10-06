@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { REPORTS } from "@/lib/reports";
 import { ExportButton } from "@/components/reports/export-button";
 import { ExportPdfButton } from "@/components/reports/export-pdf-button";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function ReportPage({ params }: { params: Promise<{ report: string }> }) {
   const { report } = await params;
   const session = await getSession();
-  if (!session || !can(session.role, "reports.view")) redirect("/dashboard");
+  if (!session || !canSession(session, "reports.view")) redirect("/dashboard");
 
   const def = REPORTS[report];
   if (!def) notFound();

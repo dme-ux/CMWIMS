@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { RECEIVABLE_STATUSES } from "@/lib/inward";
 import { generateGRNNumber } from "@/lib/purchase";
 
@@ -28,7 +28,7 @@ const locKey = (itemId: string, l: ReceiveLine) => [itemId, l.warehouseId, l.rac
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();
-  if (!session || !can(session.role, "purchase.manage")) {
+  if (!session || !canSession(session, "purchase.manage")) {
     return NextResponse.json({ error: "You don't have permission to receive material." }, { status: 403 });
   }
 

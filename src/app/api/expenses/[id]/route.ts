@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
@@ -8,7 +8,7 @@ const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const s = await getSession();
-  if (!s || !can(s.role, "expenses.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
+  if (!s || !canSession(s, "expenses.edit")) return NextResponse.json({ error: "No permission" }, { status: 403 });
   try {
     const b = await req.json();
     const amount = Number(b.amount);
@@ -37,7 +37,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const s = await getSession();
-  if (!s || !can(s.role, "expenses.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
+  if (!s || !canSession(s, "expenses.delete")) return NextResponse.json({ error: "No permission" }, { status: 403 });
   try {
     await prisma.expense.delete({ where: { id } });
     await prisma.auditLog.create({ data: { userId: s.id, action: "DELETE", entity: "Expense", entityId: id, detail: "" } });

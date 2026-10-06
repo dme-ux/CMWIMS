@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { getVehicles } from "@/lib/customer-vehicle";
 const str = (v: unknown) => typeof v === "string" && v.trim() ? v.trim() : null;
 const num = (v: unknown) => v === "" || v == null ? null : Number(v) || null;
 
 export async function GET(req: NextRequest) {
-  const s = await getSession(); if (!s || !can(s.role, "workshop.view")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const s = await getSession(); if (!s || !canSession(s, "workshop.edit")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   return NextResponse.json({ vehicles: await getVehicles(req.nextUrl.searchParams.get("q") || "") });
 }
 export async function POST(req: NextRequest) {
-  const s = await getSession(); if (!s || !can(s.role, "workshop.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
+  const s = await getSession(); if (!s || !canSession(s, "workshop.edit")) return NextResponse.json({ error: "No permission" }, { status: 403 });
   try {
     const b = await req.json();
     if (!b.registration?.trim() && !b.chassisNumber?.trim() && !b.vin?.trim()) return NextResponse.json({ error: "Registration, VIN or chassis number is required." }, { status: 400 });

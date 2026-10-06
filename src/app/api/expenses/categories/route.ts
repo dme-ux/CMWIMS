@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   const s = await getSession();
-  if (!s || !can(s.role, "expenses.view")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!s || !canSession(s, "expenses.view")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const categories = await prisma.expenseCategory.findMany({ orderBy: { name: "asc" } });
   return NextResponse.json({ categories });
 }
 
 export async function POST(req: NextRequest) {
   const s = await getSession();
-  if (!s || !can(s.role, "expenses.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
+  if (!s || !canSession(s, "expenses.create")) return NextResponse.json({ error: "No permission" }, { status: 403 });
   try {
     const { name } = await req.json();
     const trimmed = String(name || "").trim();

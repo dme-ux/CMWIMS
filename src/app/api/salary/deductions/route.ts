@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { listDeductions, createDeduction } from "@/lib/salary";
 
 export async function GET(req: NextRequest) {
   const s = await getSession();
-  if (!s || !can(s.role, "salary.view")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!s || !canSession(s, "salary.view")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const employeeId = req.nextUrl.searchParams.get("employeeId") || undefined;
   const deductions = await listDeductions(employeeId);
   return NextResponse.json({ deductions });
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const s = await getSession();
-  if (!s || !can(s.role, "salary.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
+  if (!s || !canSession(s, "salary.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
   try {
     const b = await req.json();
     if (!b.employeeId) return NextResponse.json({ error: "Select an employee." }, { status: 400 });

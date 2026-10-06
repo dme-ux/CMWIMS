@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { ISSUE_REASONS } from "@/lib/outward";
 const num=(v:unknown)=>(v===""||v==null?0:Number(v)||0); const clean=(v:unknown)=>(typeof v==="string"&&v.trim()?v.trim():null);
 
 export async function POST(req:NextRequest){
-  const session=await getSession();if(!session||!can(session.role,"inventory.manage"))return NextResponse.json({error:"You don't have permission to issue material."},{status:403});
+  const session=await getSession();if(!session||!canSession(session,"inventory.manage"))return NextResponse.json({error:"You don't have permission to issue material."},{status:403});
   try{
     const b=await req.json();const reason=ISSUE_REASONS.find((r)=>r.value===b.reason);if(!reason)return NextResponse.json({error:"Select a valid reason."},{status:400});if(!b.itemId)return NextResponse.json({error:"Select an item."},{status:400});if(!b.locationStockId)return NextResponse.json({error:"Select the exact stock location."},{status:400});const qty=num(b.quantity);if(qty<=0)return NextResponse.json({error:"Enter a quantity greater than zero."},{status:400});
     const [item,source]=await Promise.all([prisma.item.findUnique({where:{id:b.itemId}}),prisma.itemLocationStock.findUnique({where:{id:b.locationStockId}})]);if(!item)return NextResponse.json({error:"Item not found."},{status:404});if(!source||source.itemId!==item.id)return NextResponse.json({error:"Selected stock location is invalid."},{status:400});

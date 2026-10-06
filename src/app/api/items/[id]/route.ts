@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 
 const num = (v: unknown) => (v === "" || v == null ? 0 : Number(v) || 0);
 const str = (v: unknown) => (v == null || v === "" ? null : String(v).trim());
@@ -27,7 +27,7 @@ function compat(value: unknown) {
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();
-  if (!session || !can(session.role, "inventory.manage")) return NextResponse.json({ error: "You don't have permission to edit items." }, { status: 403 });
+  if (!session || !canSession(session, "inventory.manage")) return NextResponse.json({ error: "You don't have permission to edit items." }, { status: 403 });
 
   try {
     const existing = await prisma.item.findUnique({ where: { id } });
@@ -68,7 +68,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();
-  if (!session || !can(session.role, "inventory.manage")) return NextResponse.json({ error: "You don't have permission to delete items." }, { status: 403 });
+  if (!session || !canSession(session, "inventory.manage")) return NextResponse.json({ error: "You don't have permission to delete items." }, { status: 403 });
   await prisma.item.update({ where: { id }, data: { isActive: false } });
   await prisma.auditLog.create({ data: { userId: session.id, action: "DELETE", entity: "Item", entityId: id } });
   return NextResponse.json({ ok: true });

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { getGatePasses } from "@/lib/gatepass";
 import { GatePassClient } from "@/components/gatepass/gatepass-client";
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function GatePassPage() {
   const session = await getSession();
-  if (!session || !can(session.role, "workshop.view")) redirect("/dashboard");
+  if (!session || !canSession(session, "workshop.status")) redirect("/dashboard");
 
   const [passes, companySetting] = await Promise.all([
     getGatePasses(),

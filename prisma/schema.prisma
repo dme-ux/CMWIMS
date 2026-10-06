@@ -102,6 +102,7 @@ model User {
   isActive     Boolean   @default(true)
   avatarUrl    String?
   phone        String?
+  customPermissions Json?     // null = role defaults; array = exact per-user permission set
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -857,6 +858,15 @@ model WorkshopJob {
   advisorSignatureRequired Boolean @default(false)
   emailRequested      Boolean @default(false)
   emailStatus         String? // NOT_REQUESTED / PENDING_SETUP / SENT / FAILED
+
+  // Job card approval gate — printing/sharing is locked until approved
+  approvalStatus      String   @default("PENDING") // PENDING / APPROVED / REJECTED / REVISION_REQUIRED
+  approvalRequestedAt DateTime?
+  approvalRequestedBy String?
+  approvedAt          DateTime?
+  approvedBy          String?
+  approvalRemarks     String?
+  approvalWhatsAppSentAt DateTime?
 
   status        WorkshopStatus @default(RECEIVED)
   remarks       String?

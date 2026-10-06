@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { MapPin, History } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { getIssuableItems, getOutwardTargets, ISSUE_REASONS } from "@/lib/outward";
 import { getStockMovements, locationText } from "@/lib/stock-ledger";
 import { IssueForm } from "@/components/outward/issue-form";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 function dt(v:Date){return new Intl.DateTimeFormat("en-IN",{timeZone:"Asia/Kolkata",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:true}).format(v);}
 
 export default async function OutwardPage(){
-  const session=await getSession();if(!session||!can(session.role,"inventory.manage"))redirect("/dashboard");
+  const session=await getSession();if(!session||!canSession(session,"inventory.manage"))redirect("/dashboard");
   const [items,targets,history]=await Promise.all([getIssuableItems(),getOutwardTargets(),getStockMovements({direction:"OUT"},200)]);const reasons=ISSUE_REASONS.map((r)=>({value:r.value,label:r.label}));
   return <div className="space-y-5">
     <div className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="font-display text-2xl font-bold text-ink dark:text-slate-100">Outward · Issue Material</h1><p className="text-sm text-ink-muted">Issue from exact Warehouse → Rack → Shelf → Bin and link it to Job Card / Vehicle / Customer.</p></div><Link href="/inventory/ledger?direction=OUT" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-brand-600 dark:border-white/10"><History className="h-4 w-4"/> Full outward history</Link></div>

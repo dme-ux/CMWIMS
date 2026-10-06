@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { getBillById, paymentStatusMeta } from "@/lib/accounting";
 import { inr, formatDate } from "@/lib/utils";
 import { PaymentPanel } from "@/components/accounting/payment-panel";
@@ -12,13 +12,13 @@ export const dynamic = "force-dynamic";
 export default async function BillDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();
-  if (!session || !can(session.role, "accounts.view")) redirect("/dashboard");
+  if (!session || !canSession(session, "accounts.view")) redirect("/dashboard");
 
   const bill = await getBillById(id);
   if (!bill) notFound();
   const [label, cls] = paymentStatusMeta(bill.paymentStatus);
   const pending = bill.grandTotal - bill.paidAmount;
-  const canManage = can(session.role, "accounts.manage");
+  const canManage = canSession(session, "accounts.manage");
 
   return (
     <div className="space-y-5">

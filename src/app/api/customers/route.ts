@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { prisma } from "@/lib/prisma";
 import { customerCode, getCustomers } from "@/lib/customer-vehicle";
 
@@ -8,13 +8,13 @@ const str = (v: unknown) => typeof v === "string" && v.trim() ? v.trim() : null;
 
 export async function GET(req: NextRequest) {
   const s = await getSession();
-  if (!s || !can(s.role, "workshop.view")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!s || !canSession(s, "workshop.edit")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   return NextResponse.json({ customers: await getCustomers(req.nextUrl.searchParams.get("q") || "") });
 }
 
 export async function POST(req: NextRequest) {
   const s = await getSession();
-  if (!s || !can(s.role, "workshop.manage")) return NextResponse.json({ error: "No permission" }, { status: 403 });
+  if (!s || !canSession(s, "workshop.edit")) return NextResponse.json({ error: "No permission" }, { status: 403 });
   try {
     const b = await req.json();
     if (!b.name?.trim()) return NextResponse.json({ error: "Customer name is required." }, { status: 400 });

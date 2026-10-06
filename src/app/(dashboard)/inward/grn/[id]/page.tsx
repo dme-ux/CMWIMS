@@ -2,14 +2,14 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, MapPin } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { getGRNById } from "@/lib/grn";
 import { formatDate, inr } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export default async function GRNPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await getSession(); if (!session || !can(session.role, "purchase.view")) redirect("/dashboard");
+  const session = await getSession(); if (!session || !canSession(session, "purchase.view")) redirect("/dashboard");
   const grn = await getGRNById(id); if (!grn) notFound();
   return <div className="space-y-5">
     <Link href={`/purchase/${grn.poId}`} className="flex items-center gap-2 text-sm text-ink-muted hover:text-brand-600"><ArrowLeft className="h-4 w-4"/> Back to {grn.po.number}</Link>

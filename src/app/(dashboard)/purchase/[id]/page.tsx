@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Pencil, PackageCheck, MapPin, ReceiptText } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { getPurchaseOrderById, poStatusMeta } from "@/lib/purchase";
 import { inr, formatDate } from "@/lib/utils";
 import { POActions } from "@/components/purchase/po-actions";
@@ -13,11 +13,11 @@ export const dynamic = "force-dynamic";
 export default async function PODetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();
-  if (!session || !can(session.role, "purchase.view")) redirect("/dashboard");
+  if (!session || !canSession(session, "purchase.view")) redirect("/dashboard");
   const po = await getPurchaseOrderById(id);
   if (!po) notFound();
   const [label, cls] = poStatusMeta(po.status);
-  const canManage = can(session.role, "purchase.manage");
+  const canManage = canSession(session, "purchase.manage");
   const editable = canManage && !["RECEIVED", "CANCELLED"].includes(po.status);
   const receivable = canManage && ["APPROVED", "SENT", "PARTIALLY_RECEIVED"].includes(po.status) && po.items.some((x) => x.receivedQty < x.quantity);
 
@@ -29,7 +29,7 @@ export default async function PODetailPage({ params }: { params: Promise<{ id: s
         <POPrintButton po={po} />
         {editable && <Link href={`/purchase/${po.id}/edit`} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-brand-600 hover:bg-brand-50 dark:border-white/10 dark:bg-white/5"><Pencil className="h-4 w-4" /> Edit PO</Link>}
         {receivable && <Link href={`/inward/${po.id}`} className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-glass hover:bg-brand-700"><PackageCheck className="h-4 w-4" /> Receive material</Link>}
-        <POActions id={po.id} status={po.status} canManage={canManage} canApprove={can(session.role, "purchase.approve")} />
+        <POActions id={po.id} status={po.status} canManage={canManage} canApprove={canSession(session, "purchase.approve")} />
       </div>
     </div>
 

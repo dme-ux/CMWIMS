@@ -2,14 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BarChart3, ChevronRight } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { REPORT_LIST } from "@/lib/reports";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReportsPage() {
   const session = await getSession();
-  if (!session || !can(session.role, "reports.view")) redirect("/dashboard");
+  if (!session || !canSession(session, "reports.view")) redirect("/dashboard");
 
   return (
     <div className="space-y-5">

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { MASTER_TYPES } from "@/lib/master-config";
 
 function model(type: string): { delegate: any; order: any } | null {
@@ -51,7 +51,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ typ
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ type: string }> }) {
   const { type } = await params; const session = await getSession();
-  if (!session || !can(session.role, "masters.manage")) return NextResponse.json({ error: "You don't have permission to manage masters." }, { status: 403 });
+  if (!session || !canSession(session, "masters.manage")) return NextResponse.json({ error: "You don't have permission to manage masters." }, { status: 403 });
   const m = model(type); if (!m || !MASTER_TYPES[type]) return NextResponse.json({ error: "Unknown master type" }, { status: 404 });
   try {
     const body = await req.json(); const data = buildData(type, body);
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ typ
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ type: string }> }) {
   const { type } = await params; const session = await getSession();
-  if (!session || !can(session.role, "masters.manage")) return NextResponse.json({ error: "You don't have permission to manage masters." }, { status: 403 });
+  if (!session || !canSession(session, "masters.manage")) return NextResponse.json({ error: "You don't have permission to manage masters." }, { status: 403 });
   const m = model(type); if (!m || !MASTER_TYPES[type]) return NextResponse.json({ error: "Unknown master type" }, { status: 404 });
   try {
     const body = await req.json(); if (!body.id) return NextResponse.json({ error: "Missing record id." }, { status: 400 });
@@ -72,7 +72,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ type
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ type: string }> }) {
   const { type } = await params; const session = await getSession();
-  if (!session || !can(session.role, "masters.manage")) return NextResponse.json({ error: "You don't have permission to manage masters." }, { status: 403 });
+  if (!session || !canSession(session, "masters.manage")) return NextResponse.json({ error: "You don't have permission to manage masters." }, { status: 403 });
   const m = model(type); if (!m || !MASTER_TYPES[type]) return NextResponse.json({ error: "Unknown master type" }, { status: 404 });
   try { const body = await req.json(); if (!body.id) return NextResponse.json({ error: "Missing record id." }, { status: 400 }); await m.delegate.delete({ where: { id: body.id } }); return NextResponse.json({ ok: true }); }
   catch (e: any) { if (e?.code === "P2003") return NextResponse.json({ error: "This record is in use and cannot be deleted." }, { status: 409 }); return NextResponse.json({ error: "Could not delete. Try again." }, { status: 500 }); }

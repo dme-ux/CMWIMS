@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PackageCheck, ArrowDownToLine, MapPin, History } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { getReceivablePOs } from "@/lib/inward";
 import { getIssuableItems } from "@/lib/outward";
 import { getLocationMasters } from "@/lib/stock";
@@ -19,7 +19,7 @@ function dt(v: Date) {
 
 export default async function InwardPage() {
   const session = await getSession();
-  if (!session || !can(session.role, "purchase.manage")) redirect("/dashboard");
+  if (!session || !canSession(session, "purchase.manage")) redirect("/dashboard");
   const [orders, items, locations, history] = await Promise.all([
     getReceivablePOs(), getIssuableItems(), getLocationMasters(), getStockMovements({ direction: "IN" }, 200),
   ]);

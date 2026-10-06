@@ -5,14 +5,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 
 const num = (v: unknown) => (v === "" || v == null ? 0 : Number(v) || 0);
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();
-  if (!session || !can(session.role, "accounts.manage")) {
+  if (!session || !canSession(session, "accounts.manage")) {
     return NextResponse.json({ error: "You don't have permission to record payments." }, { status: 403 });
   }
 

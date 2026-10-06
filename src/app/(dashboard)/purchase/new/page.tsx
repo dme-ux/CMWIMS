@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { can } from "@/lib/auth/rbac";
+import {can, canSession} from "@/lib/auth/rbac";
 import { getPOFormData } from "@/lib/purchase";
 import { POForm } from "@/components/purchase/po-form";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NewPOPage() {
   const session = await getSession();
-  if (!session || !can(session.role, "purchase.manage")) redirect("/purchase");
+  if (!session || !canSession(session, "purchase.manage")) redirect("/purchase");
   const { vendors, items } = await getPOFormData();
 
   return (

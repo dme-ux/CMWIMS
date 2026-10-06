@@ -38,12 +38,9 @@ export function ExpensesClient({
   initial,
   categories,
   summary,
-  canManage,
+  canCreate,canEdit,canDelete,canExport,
 }: {
-  initial: ExpenseRow[];
-  categories: Category[];
-  summary: Summary;
-  canManage: boolean;
+  initial: ExpenseRow[]; categories: Category[]; summary: Summary & {lastMonth:number;financialYear:number;allTime:number;byMode:{name:string;total:number}[];byPaidBy:{name:string;total:number}[]}; canCreate:boolean;canEdit:boolean;canDelete:boolean;canExport:boolean;
 }) {
   const router = useRouter();
   const [rows, setRows] = useState(initial);
@@ -160,7 +157,7 @@ export function ExpensesClient({
           <h1 className="font-display text-2xl font-bold text-ink dark:text-slate-100">Expenses</h1>
           <p className="text-sm text-ink-muted">Day-to-day operational spend — food, electricity, fuel, rent and more.</p>
         </div>
-        {canManage && (
+        {canCreate && (
           <Button onClick={openNew}>
             <Plus className="h-4 w-4" /> New Expense
           </Button>
@@ -168,10 +165,12 @@ export function ExpensesClient({
       </div>
 
       {/* summary cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard icon={<Wallet className="h-5 w-5" />} label="Today" value={inr(summary.today)} tone="brand" />
         <StatCard icon={<CalendarClock className="h-5 w-5" />} label="This month" value={inr(summary.month)} tone="amber" />
-        <StatCard icon={<Receipt className="h-5 w-5" />} label="Entries (filtered)" value={String(filtered.length)} sub={inr(filteredTotal)} tone="brand" />
+        <StatCard icon={<CalendarClock className="h-5 w-5" />} label="Last month" value={inr(summary.lastMonth)} tone="brand" />
+        <StatCard icon={<Wallet className="h-5 w-5" />} label="Financial year" value={inr(summary.financialYear)} tone="amber" />
+        <StatCard icon={<Receipt className="h-5 w-5" />} label="Filtered Total" value={inr(filteredTotal)} sub={`${filtered.length} entries`} tone="brand" />
       </div>
 
       {/* charts */}
@@ -222,7 +221,7 @@ export function ExpensesClient({
         <input type="date" className={input + " w-auto"} value={from} onChange={(e) => setFrom(e.target.value)} />
         <span className="text-xs text-ink-muted">to</span>
         <input type="date" className={input + " w-auto"} value={to} onChange={(e) => setTo(e.target.value)} />
-        <ExportButton columns={csvColumns} rows={csvRows} filename="expenses" />
+        {canExport&&<ExportButton columns={csvColumns} rows={csvRows} filename="expenses" />}
       </div>
 
       {/* table */}
@@ -238,13 +237,13 @@ export function ExpensesClient({
                 <th className="px-4 py-3">Paid By</th>
                 <th className="px-4 py-3">Mode</th>
                 <th className="px-4 py-3">Entered By</th>
-                {canManage && <th className="px-4 py-3 text-right">Actions</th>}
+                {(canEdit||canDelete) && <th className="px-4 py-3 text-right">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={canManage ? 8 : 7} className="px-4 py-16 text-center text-ink-muted">
+                  <td colSpan={(canEdit||canDelete) ? 8 : 7} className="px-4 py-16 text-center text-ink-muted">
                     <Receipt className="mx-auto mb-3 h-8 w-8 opacity-40" />
                     No expenses match these filters.
                   </td>
@@ -261,15 +260,11 @@ export function ExpensesClient({
                   <td className="px-4 py-3 text-ink-soft dark:text-slate-300">{r.paidBy || "—"}</td>
                   <td className="px-4 py-3 text-ink-soft dark:text-slate-300">{r.mode || "—"}</td>
                   <td className="px-4 py-3 text-xs text-ink-muted">{r.createdByName || "—"}</td>
-                  {canManage && (
+                  {(canEdit||canDelete) && (
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
-                        <button onClick={() => openEdit(r)} className="rounded-lg p-1.5 text-ink-muted hover:bg-brand-50 hover:text-brand-700 dark:hover:bg-white/10">
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => remove(r.id)} className="rounded-lg p-1.5 text-ink-muted hover:bg-red-50 hover:text-red-600 dark:hover:bg-white/10">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {canEdit&&<button onClick={() => openEdit(r)} className="rounded-lg p-1.5 text-ink-muted hover:bg-brand-50 hover:text-brand-700 dark:hover:bg-white/10"><Pencil className="h-4 w-4" /></button>}
+                        {canDelete&&<button onClick={() => remove(r.id)} className="rounded-lg p-1.5 text-ink-muted hover:bg-red-50 hover:text-red-600 dark:hover:bg-white/10"><Trash2 className="h-4 w-4" /></button>}
                       </div>
                     </td>
                   )}
@@ -281,7 +276,7 @@ export function ExpensesClient({
                 <tr className="border-t-2 border-brand-200 font-semibold dark:border-brand-500/30">
                   <td className="px-4 py-3" colSpan={3}>Total</td>
                   <td className="px-4 py-3 text-right text-brand-700 dark:text-brand-200">{inr(filteredTotal)}</td>
-                  <td colSpan={canManage ? 4 : 3} />
+                  <td colSpan={(canEdit||canDelete) ? 4 : 3} />
                 </tr>
               </tfoot>
             )}

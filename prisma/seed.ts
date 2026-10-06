@@ -15,14 +15,6 @@ async function main() {
   // ---- Users (default password for every account: Cmw@2025) ----
   const users: { name: string; username: string; role: Role }[] = [
     { name: "Sunil Tiwari", username: "admin", role: "ADMIN" },
-    { name: "Operations Manager", username: "manager", role: "MANAGER" },
-    { name: "Store Manager", username: "store", role: "STORE_MANAGER" },
-    { name: "Accounts Executive", username: "accounts", role: "ACCOUNTS" },
-    { name: "Purchase Officer", username: "purchase", role: "PURCHASE" },
-    { name: "Workshop Head", username: "workshop", role: "WORKSHOP" },
-    { name: "Service Advisor", username: "advisor", role: "SERVICE_ADVISOR" },
-    { name: "Lead Technician", username: "tech", role: "TECHNICIAN" },
-    { name: "Read-only User", username: "viewer", role: "VIEWER" },
   ];
 
   for (const u of users) {
