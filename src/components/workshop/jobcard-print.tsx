@@ -93,7 +93,7 @@ export function JobCardPrint({job:j,company:c,documents:d,canPrint,onClose}:{job
             <div>{j.custSignature&&<img src={j.custSignature} alt="Customer signature"/>}<div className="sig-line">Customer Signature</div></div>
             <div>{j.advisorSignature&&<img src={j.advisorSignature} alt="Advisor signature"/>}<div className="sig-line right">Advisor / Executive Signature</div></div>
           </div>
-          <div className="footer-note">Vehicle received subject to the Terms & Conditions printed on Page 2.</div>{j.approvalStatus==='APPROVED'&&<div className="mt-2 text-center text-[8px] font-bold text-emerald-700">APPROVED BY {j.approvedBy||'Authorised Approver'} {j.approvedAt?`· ${new Date(j.approvedAt).toLocaleString('en-IN')}`:''}</div>}
+          <div className="footer-note">Vehicle received subject to the Terms & Conditions printed on Page 2.</div>{j.approvalStatus==='APPROVED'&&<div className="mt-2 text-center text-[8px] font-bold text-emerald-700">CUSTOMER APPROVAL RECORDED BY {j.approvedBy||'Service Advisor'} {j.approvedAt?`· ${new Date(j.approvedAt).toLocaleString('en-IN')}`:''}</div>}
         </section>
 
         <section className="job-page terms-page">

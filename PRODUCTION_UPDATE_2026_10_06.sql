@@ -22,3 +22,7 @@ SET "isActive" = FALSE, "updatedAt" = NOW()
 WHERE "username" IN ('manager','store','accounts','purchase','workshop','advisor','tech','viewer');
 
 COMMIT;
+
+-- 2026-10-06 customer approval workflow update
+ALTER TABLE "WorkshopJob" ADD COLUMN IF NOT EXISTS "approvalSource" TEXT;
+ALTER TABLE "WorkshopJob" ADD COLUMN IF NOT EXISTS "approvalCustomerPhone" TEXT;

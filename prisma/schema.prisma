@@ -867,6 +867,8 @@ model WorkshopJob {
   approvedBy          String?
   approvalRemarks     String?
   approvalWhatsAppSentAt DateTime?
+  approvalSource         String?   // WHATSAPP_CUSTOMER / MANUAL_ADVISOR / CUSTOMER_CORRECTION
+  approvalCustomerPhone  String?
 
   status        WorkshopStatus @default(RECEIVED)
   remarks       String?
