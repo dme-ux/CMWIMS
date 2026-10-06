@@ -53,19 +53,40 @@ export async function generateOriginalJobCardPdf(job: PrintJob, company: any, do
   };
 
   const logo = await imageAsDataUrl(company?.logoDataUrl || "/logo.jpeg");
-  if (logo) {
-    try { doc.addImage(logo, logo.includes("image/png") ? "PNG" : "JPEG", left, 10, 16, 16, undefined, "FAST"); } catch {}
-  }
-  doc.setTextColor(...BLUE); doc.setFont("helvetica","bold"); doc.setFontSize(18); doc.text(company?.name || "Capital Motor Works", left+20, 16);
-  doc.setTextColor(...TEXT); doc.setFont("helvetica","normal"); doc.setFontSize(6.7);
-  const addr = doc.splitTextToSize(safe(company?.address), 102); doc.text(addr, left+20, 21);
   const contacts = [company?.phone, company?.email, company?.website, company?.gstin ? `GSTIN: ${company.gstin}` : ""].filter(Boolean).join("  ·  ");
-  doc.text(doc.splitTextToSize(contacts, 108), left+20, 25);
-  doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.text("JOB CARD", right, 16, {align:"right"}); doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.text(job.jobNumber, right, 22, {align:"right"});
-  doc.setDrawColor(...BLUE); doc.setLineWidth(0.8); doc.line(left, 29, right, 29);
+
+  // Draw a dynamic-height header so long company addresses/contact lines never overlap or get clipped.
+  const drawHeader = (title = "JOB CARD") => {
+    if (logo) {
+      try { doc.addImage(logo, logo.includes("image/png") ? "PNG" : "JPEG", left, 10, 16, 16, undefined, "FAST"); } catch {}
+    }
+    doc.setTextColor(...BLUE); doc.setFont("helvetica","bold"); doc.setFontSize(18);
+    doc.text(company?.name || "Capital Motor Works", left+20, 16);
+
+    doc.setTextColor(...TEXT); doc.setFont("helvetica","normal"); doc.setFontSize(6.4);
+    const addressLines = doc.splitTextToSize(safe(company?.address), 124);
+    doc.text(addressLines, left+20, 21, { lineHeightFactor: 1.08 });
+    const addressBottom = 21 + Math.max(0, addressLines.length - 1) * 2.9;
+
+    const contactLines = doc.splitTextToSize(contacts, 124);
+    const contactY = addressBottom + 3.4;
+    doc.text(contactLines, left+20, contactY, { lineHeightFactor: 1.08 });
+    const contactBottom = contactY + Math.max(0, contactLines.length - 1) * 2.9;
+
+    doc.setFont("helvetica","bold"); doc.setFontSize(title === "JOB CARD" ? 12 : 10);
+    doc.text(title, right, 16, {align:"right"});
+    doc.setFont("helvetica","normal"); doc.setFontSize(8);
+    doc.text(job.jobNumber, right, 22, {align:"right"});
+
+    const headerBottom = Math.max(30, contactBottom + 4.5);
+    doc.setDrawColor(...BLUE); doc.setLineWidth(0.8); doc.line(left, headerBottom, right, headerBottom);
+    return headerBottom;
+  };
+
+  const headerBottom = drawHeader();
 
   // Meta row
-  let y = 32;
+  let y = headerBottom + 3;
   const metaH = 15, metaW = [75,57,56];
   doc.setDrawColor(...BORDER); doc.rect(left,y,width,metaH);
   let mx = left;
@@ -133,16 +154,12 @@ export async function generateOriginalJobCardPdf(job: PrintJob, company: any, do
 
   // Terms page exactly as the preview's Page 2 concept.
   doc.addPage();
-  if (logo) { try { doc.addImage(logo, logo.includes("image/png") ? "PNG" : "JPEG", left, 10, 16, 16, undefined, "FAST"); } catch {} }
-  doc.setTextColor(...BLUE); doc.setFont("helvetica","bold"); doc.setFontSize(18); doc.text(company?.name || "Capital Motor Works", left+20, 16);
-  doc.setTextColor(...TEXT); doc.setFont("helvetica","normal"); doc.setFontSize(6.7); doc.text(doc.splitTextToSize(safe(company?.address),102),left+20,21);
-  doc.text(doc.splitTextToSize(contacts,108),left+20,25); doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.text("JOB CARD - TERMS & CONDITIONS",right,16,{align:"right"}); doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.text(job.jobNumber,right,22,{align:"right"});
-  doc.setDrawColor(...BLUE);doc.setLineWidth(.8);doc.line(left,29,right,29);
-  doc.setFont("helvetica","bold");doc.setFontSize(13);doc.text("Terms & Conditions",105,42,{align:"center"});
+  const termsHeaderBottom = drawHeader("JOB CARD - TERMS & CONDITIONS");
+  doc.setFont("helvetica","bold");doc.setFontSize(13);doc.text("Terms & Conditions",105,termsHeaderBottom+13,{align:"center"});
   const fallback = "Pickup and delivery of the vehicle, when arranged at the customer request, shall be at the customer risk. Capital Motor Works shall not be responsible for loss, damage, accident, theft or delay during pickup or delivery, except to the extent required by applicable law.";
   const terms=String(documents?.jobCardTerms||fallback).split(/\n+/).map((x:string)=>x.replace(/^\s*\d+[.)]\s*/,"").trim()).filter(Boolean);
   if(!terms.some((t:string)=>/pickup|delivery.*risk/i.test(t)))terms.push(fallback);
-  let ty=53; doc.setFont("helvetica","normal");doc.setFontSize(8.5);
+  let ty=termsHeaderBottom+24; doc.setFont("helvetica","normal");doc.setFontSize(8.5);
   terms.forEach((term:string,i:number)=>{const lines=doc.splitTextToSize(`${i+1}. ${term}`,174); if(ty+lines.length*4.5>260){doc.addPage();ty=18;} doc.text(lines,left+4,ty);ty+=lines.length*4.5+3;});
   const sy=276;line(left,sy,left+70,sy);line(right-70,sy,right,sy);text("Customer Signature",left,sy+4,7);text(`For ${company?.name||"Capital Motor Works"}`,right,sy+4,7,false,{align:"right"});
 
